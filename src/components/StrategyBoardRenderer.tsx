@@ -1,0 +1,464 @@
+/**
+ * Strategy Board Renderer Component
+ * 
+ * Renders a decoded FF14 Strategy Board as an SVG element.
+ * Uses PNG images from /icons/ for most objects, SVG for geometric primitives.
+ */
+
+import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
+
+interface StrategyBoardRendererProps {
+    board: StrategyBoard
+    width?: number
+    height?: number
+    className?: string
+}
+
+// Board dimensions (from FORMAT.md)
+const BOARD_WIDTH = 512
+const BOARD_HEIGHT = 384
+
+// Types that should use SVG instead of images
+const SVG_ONLY_TYPES = new Set([
+    'text',
+    'line',
+    'line_aoe',
+    'circle_aoe',
+    'fan_aoe',
+    'donut',
+])
+
+// Default icon sizes (in board units)
+const ICON_SIZE_DEFAULTS: Record<string, number> = {
+    // Small icons (waymarks, markers)
+    waymark_a: 44, waymark_b: 44, waymark_c: 44, waymark_d: 44,
+    waymark_1: 44, waymark_2: 44, waymark_3: 44, waymark_4: 44,
+    attack_1: 30, attack_2: 30, attack_3: 30, attack_4: 30,
+    attack_5: 30, attack_6: 30, attack_7: 30, attack_8: 30,
+    bind_1: 30, bind_2: 30, bind_3: 30,
+    ignore_1: 30, ignore_2: 30,
+    square_marker: 30, circle_marker: 30, plus_marker: 30, triangle_marker: 30,
+
+    // Role/job icons
+    tank: 28, tank_1: 28, tank_2: 28,
+    healer: 28, healer_1: 28, healer_2: 28,
+    dps: 28, dps_1: 28, dps_2: 28, dps_3: 28, dps_4: 28,
+    melee_dps: 28, ranged_dps: 28, physical_ranged_dps: 28, magical_ranged_dps: 28,
+    pure_healer: 28, barrier_healer: 28,
+
+    // Jobs
+    paladin: 28, monk: 28, warrior: 28, dragoon: 28, bard: 28,
+    white_mage: 28, black_mage: 28, summoner: 28, scholar: 28,
+    ninja: 28, machinist: 28, dark_knight: 28, astrologian: 28,
+    samurai: 28, red_mage: 28, blue_mage: 28, gunbreaker: 28,
+    dancer: 28, reaper: 28, sage: 28, viper: 28, pictomancer: 28,
+    gladiator: 28, pugilist: 28, marauder: 28, lancer: 28,
+    archer: 28, conjurer: 28, thaumaturge: 28, arcanist: 28, rogue: 28,
+
+    // Mechanics - larger
+    stack: 124, stack_multi: 124, line_stack: 48,
+    gaze: 124, proximity: 248, proximity_player: 72,
+    tankbuster: 72, tower: 64, targeting: 72,
+    radial_knockback: 72, linear_knockback: 72,
+    moving_circle_aoe: 64,
+    '1person_aoe': 48, '2person_aoe': 48, '3person_aoe': 48, '4person_aoe': 48,
+
+    // Shapes
+    shape_circle: 32, shape_x: 32, shape_triangle: 32, shape_square: 32,
+    up_arrow: 32, rotate: 32,
+
+    small_enemy: 64, medium_enemy: 64, large_enemy: 64,
+
+    // Backgrounds (field overlays)
+    checkered_circle: 384, checkered_square: 384,
+    grey_circle: 384, grey_square: 384,
+}
+
+// Get base size for an object type
+function getBaseSize(type: string): number {
+    return ICON_SIZE_DEFAULTS[type] ?? 32
+}
+
+// Get scaled size for an object
+function getScaledSize(obj: StrategyObject): number {
+    const baseSize = getBaseSize(obj.type)
+    const scale = (obj.size ?? 100) / 100
+    return baseSize * scale
+}
+
+// Get opacity for an object
+function getObjectOpacity(obj: StrategyObject): number {
+    if (obj.hidden) return 0
+    if (obj.transparency !== undefined) return obj.transparency / 255
+    return 1
+}
+
+// Get color for an object (used for SVG primitives)
+function getObjectColor(obj: StrategyObject): string {
+    if (obj.color) return obj.color
+    if (obj.colorR !== undefined && obj.colorG !== undefined && obj.colorB !== undefined) {
+        return `rgb(${obj.colorR}, ${obj.colorG}, ${obj.colorB})`
+    }
+    return '#ff7b00' // Default orange for AoEs
+}
+
+// Render image-based object
+function renderImageObject(obj: StrategyObject, index: number): JSX.Element | null {
+    const { type, x, y } = obj
+    const size = getScaledSize(obj)
+    const opacity = getObjectOpacity(obj)
+
+    if (opacity === 0) return null
+
+    // Center the image on the coordinates
+    const halfSize = size / 2
+
+    return (
+        <image
+            key={index}
+            href={`/icons/${type}.png`}
+            x={x - halfSize}
+            y={y - halfSize}
+            width={size}
+            height={size}
+            opacity={opacity}
+            preserveAspectRatio="xMidYMid meet"
+        />
+    )
+}
+
+// Render SVG-based geometric objects
+function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null {
+    const { type, x, y } = obj
+    const color = getObjectColor(obj)
+    const opacity = getObjectOpacity(obj)
+    const scale = (obj.size ?? 100) / 100
+
+    if (opacity === 0) return null
+
+    // Circle AoE
+    if (type === 'circle_aoe') {
+        const radius = 248 * scale
+        return (
+            <circle
+                key={index}
+                cx={x}
+                cy={y}
+                r={radius}
+                fill={color}
+                fillOpacity={opacity * 0.3}
+                stroke={color}
+                strokeWidth={2}
+                strokeOpacity={opacity}
+            />
+        )
+    }
+
+    // Donut AoE
+    // Like fan AoE, coordinates represent bounding box center for partial arcs
+    if (type === 'donut') {
+        const outerRadius = 248 * scale
+        const innerRadius = obj.donutRadius !== undefined
+            ? obj.donutRadius * scale
+            : outerRadius * 0.4
+        const angle = obj.arcAngle ?? 360
+        const angleRad = (angle * Math.PI) / 180
+
+        // Full circle donut - simple rendering
+        if (angle >= 360) {
+            return (
+                <g key={index} opacity={opacity}>
+                    <circle cx={x} cy={y} r={outerRadius} fill={color} fillOpacity={0.3} />
+                    <circle cx={x} cy={y} r={innerRadius} fill="var(--card)" />
+                    <circle cx={x} cy={y} r={outerRadius} fill="none" stroke={color} strokeWidth={2} />
+                    <circle cx={x} cy={y} r={innerRadius} fill="none" stroke={color} strokeWidth={2} />
+                </g>
+            )
+        }
+
+        // Partial donut arc - need bounding box compensation
+        // Arc starts at north (0°) and sweeps clockwise
+        // Need to compute bounding box of this asymmetric arc
+
+        // Calculate bounding box extremes
+        // Start angle is -90° (north), end angle is -90° + angle
+        const startAngleRad = -Math.PI / 2
+        const endAngleRad = startAngleRad + angleRad
+
+        // Find min/max X and Y of the arc (must include BOTH inner and outer edges)
+        // Start points
+        const outerStartX = 0  // outerRadius * cos(-90°) = 0
+        const outerStartY = -outerRadius  // outerRadius * sin(-90°) = -outerRadius
+        const innerStartX = 0
+        const innerStartY = -innerRadius
+
+        // End points
+        const outerEndX = outerRadius * Math.cos(endAngleRad)
+        const outerEndY = outerRadius * Math.sin(endAngleRad)
+        const innerEndX = innerRadius * Math.cos(endAngleRad)
+        const innerEndY = innerRadius * Math.sin(endAngleRad)
+
+        // Initialize with all 4 corner points of the arc
+        let minX = Math.min(outerStartX, innerStartX, outerEndX, innerEndX)
+        let maxX = Math.max(outerStartX, innerStartX, outerEndX, innerEndX)
+        let minY = Math.min(outerStartY, innerStartY, outerEndY, innerEndY)
+        let maxY = Math.max(outerStartY, innerStartY, outerEndY, innerEndY)
+
+        // Check cardinal directions if they fall within the arc sweep
+        // East (0°): arc extends to outerRadius
+        if (endAngleRad > 0) { maxX = outerRadius }
+        // South (90°/π/2): arc extends to outerRadius
+        if (endAngleRad > Math.PI / 2) { maxY = outerRadius }
+        // West (180°/π): arc extends to -outerRadius
+        if (endAngleRad > Math.PI) { minX = -outerRadius }
+
+        // Bounding box center offset from the arc's geometric center (0,0)
+        const bboxCenterX = (minX + maxX) / 2
+        const bboxCenterY = (minY + maxY) / 2
+
+        // Input x,y is the bounding box center, so offset to get actual arc center
+        const centerX = x - bboxCenterX
+        const centerY = y - bboxCenterY
+
+        // Arc angles for SVG path
+        // 0° = north, arc sweeps clockwise
+        const startAngle = -90 // North in SVG coordinates
+        const endAngle = -90 + angle
+        const startRad = (startAngle * Math.PI) / 180
+        const endRad = (endAngle * Math.PI) / 180
+
+        // Outer arc points
+        const ox1 = centerX + outerRadius * Math.cos(startRad)
+        const oy1 = centerY + outerRadius * Math.sin(startRad)
+        const ox2 = centerX + outerRadius * Math.cos(endRad)
+        const oy2 = centerY + outerRadius * Math.sin(endRad)
+
+        // Inner arc points
+        const ix1 = centerX + innerRadius * Math.cos(startRad)
+        const iy1 = centerY + innerRadius * Math.sin(startRad)
+        const ix2 = centerX + innerRadius * Math.cos(endRad)
+        const iy2 = centerY + innerRadius * Math.sin(endRad)
+
+        const largeArc = angle > 180 ? 1 : 0
+
+        // Path: outer arc, line to inner, inner arc (reversed), line back
+        const d = `
+            M ${ox1} ${oy1}
+            A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${ox2} ${oy2}
+            L ${ix2} ${iy2}
+            A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${ix1} ${iy1}
+            Z
+        `
+
+        return (
+            <path
+                key={index}
+                d={d}
+                fill={color}
+                fillOpacity={opacity * 0.3}
+                stroke={color}
+                strokeWidth={2}
+                strokeOpacity={opacity}
+            />
+        )
+    }
+
+    // Fan AoE (cone)
+    // Note: Game coordinates represent the bounding box center, not the cone tip.
+    // For arcs < 360°, we need to offset to find the actual cone tip position.
+    if (type === 'fan_aoe') {
+        const radius = 60 * scale
+        const angle = obj.arcAngle ?? 90
+        const angleRad = (angle * Math.PI) / 180
+
+        // Calculate bounding box for asymmetric arc starting at north
+        // Arc starts at north (0° = -90° in SVG) and sweeps clockwise
+        const startAngleRad = -Math.PI / 2
+        const endAngleRad = startAngleRad + angleRad
+
+        // Bounding box includes the cone tip (0,0) and the arc
+        // For a cone, the tip is always at (0,0) relative to itself
+        let minX = 0, maxX = 0, minY = -radius, maxY = 0
+
+        // Check the end point of the arc
+        const endX = radius * Math.cos(endAngleRad)
+        const endY = radius * Math.sin(endAngleRad)
+
+        minX = Math.min(0, endX)
+        maxX = Math.max(0, endX)
+        maxY = Math.max(0, endY)
+
+        // Check cardinal directions if they fall within the arc sweep
+        if (endAngleRad > 0) { maxX = radius }  // East
+        if (endAngleRad > Math.PI / 2) { maxY = radius }  // South
+        if (endAngleRad > Math.PI) { minX = -radius }  // West
+
+        // Bounding box center offset from the cone tip (which is at 0,0)
+        const bboxCenterX = (minX + maxX) / 2
+        const bboxCenterY = (minY + maxY) / 2
+
+        // Input x,y is the bounding box center, so offset to get actual cone tip
+        const tipX = x - bboxCenterX
+        const tipY = y - bboxCenterY
+
+        // 0° = north, arc sweeps clockwise
+        const startAngle = -90 // North in SVG coordinates
+        const endAngle = -90 + angle
+
+        const startRad = (startAngle * Math.PI) / 180
+        const endRad = (endAngle * Math.PI) / 180
+
+        const x1 = tipX + radius * Math.cos(startRad)
+        const y1 = tipY + radius * Math.sin(startRad)
+        const x2 = tipX + radius * Math.cos(endRad)
+        const y2 = tipY + radius * Math.sin(endRad)
+
+        const largeArc = angle > 180 ? 1 : 0
+
+        const d = `M ${tipX} ${tipY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`
+
+        return (
+            <path
+                key={index}
+                d={d}
+                fill={color}
+                fillOpacity={opacity * 0.3}
+                stroke={color}
+                strokeWidth={2}
+                strokeOpacity={opacity}
+            />
+        )
+    }
+
+    // Line AoE (rectangle)
+    if (type === 'line_aoe' || type === 'line') {
+        const width = 20 * scale
+        const height = 80 * scale
+        return (
+            <rect
+                key={index}
+                x={x - width / 2}
+                y={y - height / 2}
+                width={width}
+                height={height}
+                fill={color}
+                fillOpacity={opacity * 0.3}
+                stroke={color}
+                strokeWidth={2}
+                strokeOpacity={opacity}
+            />
+        )
+    }
+
+    // Text (placeholder - would need text content)
+    if (type === 'text') {
+        const size = 16 * scale
+        return (
+            <text
+                key={index}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill={color}
+                fontSize={size}
+                opacity={opacity}
+            >
+                Text
+            </text>
+        )
+    }
+
+    // Fallback - simple circle
+    const radius = 16 * scale
+    return (
+        <circle
+            key={index}
+            cx={x}
+            cy={y}
+            r={radius}
+            fill={color}
+            opacity={opacity}
+        />
+    )
+}
+
+// Render a single object - dispatches to image or SVG renderer
+function renderObject(obj: StrategyObject, index: number): JSX.Element | null {
+    if (SVG_ONLY_TYPES.has(obj.type)) {
+        return renderSvgObject(obj, index)
+    }
+    return renderImageObject(obj, index)
+}
+
+// Render board background
+function renderBackground(background?: string): JSX.Element {
+    const bgColor = 'var(--card)'
+
+    if (!background || background === 'none') {
+        return <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill={bgColor} />
+    }
+
+    // Use image for specific backgrounds
+    if (background === 'checkered_circle' || background === 'checkered_square' ||
+        background === 'grey_circle' || background === 'grey_square') {
+        return (
+            <g>
+                <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill={bgColor} />
+                <image
+                    href={`/icons/${background}.png`}
+                    x={0}
+                    y={0}
+                    width={BOARD_WIDTH}
+                    height={BOARD_HEIGHT}
+                    preserveAspectRatio="xMidYMid meet"
+                />
+            </g>
+        )
+    }
+
+    // Default checkered/grey backgrounds - draw grid
+    const isCheckered = background.includes('checkered')
+    const gridColor = isCheckered ? 'rgba(255,255,255,0.1)' : 'rgba(128,128,128,0.2)'
+
+    const elements: JSX.Element[] = [
+        <rect key="bg" width={BOARD_WIDTH} height={BOARD_HEIGHT} fill={bgColor} />
+    ]
+
+    // Grid pattern
+    const gridSize = 32
+    for (let gx = 0; gx <= BOARD_WIDTH; gx += gridSize) {
+        elements.push(
+            <line key={`v${gx}`} x1={gx} y1={0} x2={gx} y2={BOARD_HEIGHT} stroke={gridColor} strokeWidth={1} />
+        )
+    }
+    for (let gy = 0; gy <= BOARD_HEIGHT; gy += gridSize) {
+        elements.push(
+            <line key={`h${gy}`} x1={0} y1={gy} x2={BOARD_WIDTH} y2={gy} stroke={gridColor} strokeWidth={1} />
+        )
+    }
+
+    return <g>{elements}</g>
+}
+
+export function StrategyBoardRenderer({
+    board,
+    width = 512,
+    height = 384,
+    className = '',
+}: StrategyBoardRendererProps) {
+    const viewBox = `0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`
+
+    return (
+        <svg
+            viewBox={viewBox}
+            width={width}
+            height={height}
+            className={className}
+            style={{ maxWidth: '100%', height: 'auto' }}
+        >
+            {renderBackground(board.boardBackground)}
+            {board.objects.map((obj, i) => renderObject(obj, i)).reverse()}
+        </svg>
+    )
+}

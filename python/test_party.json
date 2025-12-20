@@ -1,0 +1,505 @@
+{
+    "name": "test",
+    "objects": [
+        {
+            "type": "tank",
+            "x": 0,
+            "y": 0,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 1,
+            "y": 1,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 2,
+            "y": 2,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 3,
+            "y": 3,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 4,
+            "y": 4,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 5,
+            "y": 5,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 6,
+            "y": 6,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 7,
+            "y": 7,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 8,
+            "y": 8,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 9,
+            "y": 9,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 10,
+            "y": 10,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 11,
+            "y": 11,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 12,
+            "y": 12,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 13,
+            "y": 13,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 14,
+            "y": 14,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 15,
+            "y": 15,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 16,
+            "y": 16,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 17,
+            "y": 17,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 18,
+            "y": 18,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 19,
+            "y": 19,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 20,
+            "y": 20,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 21,
+            "y": 21,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 22,
+            "y": 22,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 23,
+            "y": 23,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 24,
+            "y": 24,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 25,
+            "y": 25,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 26,
+            "y": 26,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 27,
+            "y": 27,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 28,
+            "y": 28,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 29,
+            "y": 29,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 30,
+            "y": 30,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 31,
+            "y": 31,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 32,
+            "y": 32,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 33,
+            "y": 33,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 34,
+            "y": 34,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 35,
+            "y": 35,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 36,
+            "y": 36,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 37,
+            "y": 37,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 38,
+            "y": 38,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 39,
+            "y": 39,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 40,
+            "y": 40,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 41,
+            "y": 41,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 42,
+            "y": 42,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 43,
+            "y": 43,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 44,
+            "y": 44,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 45,
+            "y": 45,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 46,
+            "y": 46,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 47,
+            "y": 47,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 48,
+            "y": 48,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        },
+        {
+            "type": "tank",
+            "x": 49,
+            "y": 49,
+            "size": 100,
+            "angle": 0,
+            "transparency": 0,
+            "locked": false,
+            "hidden": false
+        }
+    ]
+}

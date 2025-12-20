@@ -332,8 +332,8 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
     // Line AoE (rectangle)
     if (type === 'line_aoe' || type === 'line') {
-        const width = 20 * scale
-        const height = 80 * scale
+        const width = (obj.width ?? 20 * scale)
+        const height = (obj.height ?? 80 * scale)
         return (
             <rect
                 key={index}
@@ -342,7 +342,7 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
                 width={width}
                 height={height}
                 fill={color}
-                fillOpacity={opacity * 0.3}
+                fillOpacity={opacity}
                 stroke={color}
                 strokeWidth={2}
                 strokeOpacity={opacity}
@@ -364,7 +364,7 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
                 fontSize={size}
                 opacity={opacity}
             >
-                Text
+                {obj.text}
             </text>
         )
     }

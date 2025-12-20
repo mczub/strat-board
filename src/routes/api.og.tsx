@@ -4,12 +4,66 @@
  * Generates PNG preview images for strategy board share codes.
  * URL: /api/og?code=[stgy:...]
  * 
- * Uses workers-og (Satori + resvg-wasm) designed for Cloudflare Workers.
+ * Uses workers-og with pre-embedded base64 icons for realistic previews.
+ * Supports geometric shapes: circle AoE, line AoE, donut, fan AoE, text.
  */
 
 import { createFileRoute } from '@tanstack/react-router'
 import { ImageResponse } from 'workers-og'
 import { decode } from 'xiv-strat-board'
+import { getIconDataUrl } from '@/lib/iconData'
+import type { StrategyObject } from 'xiv-strat-board'
+
+// Default icon sizes (matching StrategyBoardRenderer)
+const ICON_SIZE_DEFAULTS: Record<string, number> = {
+  // Waymarks
+  waymark_a: 44, waymark_b: 44, waymark_c: 44, waymark_d: 44,
+  waymark_1: 44, waymark_2: 44, waymark_3: 44, waymark_4: 44,
+
+  // Role/job icons
+  tank: 28, tank_1: 28, tank_2: 28,
+  healer: 28, healer_1: 28, healer_2: 28,
+  dps: 28, dps_1: 28, dps_2: 28, dps_3: 28, dps_4: 28,
+  melee_dps: 28, ranged_dps: 28, physical_ranged_dps: 28, magical_ranged_dps: 28,
+  melee_1: 28, melee_2: 28, ranged_dps_1: 28, ranged_dps_2: 28,
+
+  // Jobs
+  paladin: 28, monk: 28, warrior: 28, dragoon: 28, bard: 28,
+  white_mage: 28, black_mage: 28, summoner: 28, scholar: 28,
+  ninja: 28, machinist: 28, dark_knight: 28, astrologian: 28,
+  samurai: 28, red_mage: 28, gunbreaker: 28, dancer: 28,
+  reaper: 28, sage: 28, viper: 28, pictomancer: 28,
+
+  // Enemies
+  small_enemy: 64, medium_enemy: 64, large_enemy: 90,
+
+  // Markers
+  attack_1: 30, attack_2: 30, attack_3: 30, attack_4: 30,
+  bind_1: 30, bind_2: 30, ignore_1: 30, ignore_2: 30,
+  circle_marker: 30, square_marker: 30, triangle_marker: 30, plus_marker: 30,
+
+  // Shapes
+  shape_circle: 32, shape_square: 32, shape_triangle: 32, shape_x: 32,
+  up_arrow: 32, rotate: 32,
+
+  // Geometric AoEs (base size)
+  circle_aoe: 248, donut: 248, fan_aoe: 200,
+  line_aoe: 80, line: 80,
+}
+
+// Types that use geometric rendering (not icons)
+const GEOMETRIC_TYPES = new Set([
+  'circle_aoe', 'fan_aoe', 'donut', 'line_aoe', 'line', 'text'
+])
+
+// Types that render as transparent overlays
+const OVERLAY_TYPES = new Set([
+  'checkered_circle', 'checkered_square', 'grey_circle', 'grey_square'
+])
+
+// AoE colors
+const AOE_COLOR = 'rgba(255, 123, 0, 0.4)'
+const AOE_BORDER = 'rgba(255, 123, 0, 0.8)'
 
 export const Route = createFileRoute('/api/og')({
   server: {
@@ -37,41 +91,11 @@ export const Route = createFileRoute('/api/og')({
           const offsetX = (width - boardWidth) / 2
           const offsetY = 80
 
-          // Build object elements
+          // Build object elements (positioned relative to board origin)
           const objectElements = board.objects
-            .filter(obj => !obj.hidden)
-            .map((obj, idx) => {
-              const color = getObjectColor(obj.type)
-              const label = getObjectLabel(obj.type)
-              const baseSize = getBaseSize(obj.type)
-              const objScale = (obj.size ?? 100) / 100
-              const size = baseSize * objScale * scale
-              const x = offsetX + obj.x * scale
-              const y = offsetY + obj.y * scale
-
-              return {
-                type: 'div',
-                key: `obj${idx}`,
-                props: {
-                  style: {
-                    position: 'absolute',
-                    left: x - size / 2,
-                    top: y - size / 2,
-                    width: size,
-                    height: size,
-                    borderRadius: '50%',
-                    backgroundColor: color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: Math.max(10, size * 0.4),
-                    fontWeight: 'bold',
-                  },
-                  children: label,
-                },
-              }
-            })
+            .filter(obj => !obj.hidden && !OVERLAY_TYPES.has(obj.type))
+            .map((obj, idx) => renderObject(obj, idx, scale, 0, 0)) // relative to board
+            .filter(Boolean)
 
           // Build the element tree
           const element = {
@@ -101,7 +125,7 @@ export const Route = createFileRoute('/api/og')({
                     children: board.name,
                   },
                 } : null,
-                // Board background
+                // Board container with children inside
                 {
                   type: 'div',
                   props: {
@@ -112,43 +136,46 @@ export const Route = createFileRoute('/api/og')({
                       width: boardWidth,
                       height: boardHeight,
                       backgroundColor: '#2d2640',
-                      borderRadius: 16,
                       border: '3px solid #4c3d6e',
+                      display: 'flex', // Required for Satori to handle nested children
+                      overflow: 'hidden',
                     },
+                    children: [
+                      // Grid lines - vertical
+                      ...[1, 2, 3, 4, 5, 6, 7].map((i) => ({
+                        type: 'div',
+                        key: `v${i}`,
+                        props: {
+                          style: {
+                            position: 'absolute',
+                            left: i * (boardWidth / 8),
+                            top: 0,
+                            width: 2,
+                            height: boardHeight,
+                            backgroundColor: 'rgba(255,255,255,0.15)',
+                          },
+                        },
+                      })),
+                      // Grid lines - horizontal
+                      ...[1, 2, 3, 4, 5].map((i) => ({
+                        type: 'div',
+                        key: `h${i}`,
+                        props: {
+                          style: {
+                            position: 'absolute',
+                            left: 0,
+                            top: i * (boardHeight / 6),
+                            width: boardWidth,
+                            height: 2,
+                            backgroundColor: 'rgba(255,255,255,0.15)',
+                          },
+                        },
+                      })),
+                      // Objects (relative to board origin)
+                      ...objectElements,
+                    ],
                   },
                 },
-                // Grid lines - vertical
-                ...[1, 2, 3, 4, 5, 6, 7].map((i) => ({
-                  type: 'div',
-                  key: `v${i}`,
-                  props: {
-                    style: {
-                      position: 'absolute',
-                      left: offsetX + i * (boardWidth / 8),
-                      top: offsetY,
-                      width: 1,
-                      height: boardHeight,
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                    },
-                  },
-                })),
-                // Grid lines - horizontal
-                ...[1, 2, 3, 4, 5].map((i) => ({
-                  type: 'div',
-                  key: `h${i}`,
-                  props: {
-                    style: {
-                      position: 'absolute',
-                      left: offsetX,
-                      top: offsetY + i * (boardHeight / 6),
-                      width: boardWidth,
-                      height: 1,
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                    },
-                  },
-                })),
-                // Objects
-                ...objectElements,
               ].filter(Boolean),
             },
           }
@@ -166,44 +193,172 @@ export const Route = createFileRoute('/api/og')({
   },
 })
 
-function getBaseSize(type: string): number {
-  const sizes: Record<string, number> = {
-    waymark_a: 44, waymark_b: 44, waymark_c: 44, waymark_d: 44,
-    waymark_1: 44, waymark_2: 44, waymark_3: 44, waymark_4: 44,
-    tank: 28, tank_1: 28, tank_2: 28,
-    healer: 28, healer_1: 28, healer_2: 28,
-    dps: 28, dps_1: 28, dps_2: 28, dps_3: 28, dps_4: 28,
-    small_enemy: 64, medium_enemy: 64, large_enemy: 90,
-    circle_aoe: 100, fan_aoe: 100, donut: 100,
-    stack: 60, tower: 50,
-  }
-  return sizes[type] ?? 32
-}
+function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: number, offsetY: number): object | null {
+  const x = offsetX + obj.x * scale
+  const y = offsetY + obj.y * scale
+  const objScale = (obj.size ?? 100) / 100
+  const type = obj.type
 
-function getObjectColor(type: string): string {
-  const colors: Record<string, string> = {
-    tank: '#3b82f6', tank_1: '#3b82f6', tank_2: '#3b82f6',
-    healer: '#22c55e', healer_1: '#22c55e', healer_2: '#22c55e',
-    dps: '#ef4444', dps_1: '#ef4444', dps_2: '#ef4444', dps_3: '#ef4444', dps_4: '#ef4444',
-    melee_dps: '#ef4444', ranged_dps: '#ef4444', physical_ranged_dps: '#ef4444', magical_ranged_dps: '#ef4444',
-    waymark_a: '#ef4444', waymark_b: '#facc15', waymark_c: '#3b82f6', waymark_d: '#a855f7',
-    waymark_1: '#ef4444', waymark_2: '#facc15', waymark_3: '#3b82f6', waymark_4: '#a855f7',
-    small_enemy: '#ff9900', medium_enemy: '#ff6600', large_enemy: '#ff3300',
-    circle_aoe: 'rgba(255,123,0,0.5)', fan_aoe: 'rgba(255,123,0,0.5)', donut: 'rgba(255,123,0,0.5)',
-    stack: '#00ff00', tower: '#00aaff', gaze: '#ff00ff',
+  // Circle AoE
+  if (type === 'circle_aoe') {
+    const radius = 248 * objScale * scale
+    return {
+      type: 'div',
+      key: `obj${idx}`,
+      props: {
+        style: {
+          position: 'absolute',
+          left: x - radius,
+          top: y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          borderRadius: '50%',
+          backgroundColor: AOE_COLOR,
+          border: `2px solid ${AOE_BORDER}`,
+        },
+      },
+    }
   }
-  return colors[type] ?? '#9333ea'
-}
 
-function getObjectLabel(type: string): string {
-  const labels: Record<string, string> = {
-    tank: 'T', tank_1: 'T1', tank_2: 'T2',
-    healer: 'H', healer_1: 'H1', healer_2: 'H2',
-    dps: 'D', dps_1: 'D1', dps_2: 'D2', dps_3: 'D3', dps_4: 'D4',
-    melee_dps: 'M', ranged_dps: 'R', physical_ranged_dps: 'PR', magical_ranged_dps: 'MR',
-    waymark_a: 'A', waymark_b: 'B', waymark_c: 'C', waymark_d: 'D',
-    waymark_1: '1', waymark_2: '2', waymark_3: '3', waymark_4: '4',
-    small_enemy: 'E', medium_enemy: 'E', large_enemy: 'E',
+  // Donut AoE (approximated as ring)
+  if (type === 'donut') {
+    const outerRadius = 248 * objScale * scale
+    const innerRadius = (obj.donutRadius ?? 100) * scale
+    return {
+      type: 'div',
+      key: `obj${idx}`,
+      props: {
+        style: {
+          position: 'absolute',
+          left: x - outerRadius,
+          top: y - outerRadius,
+          width: outerRadius * 2,
+          height: outerRadius * 2,
+          borderRadius: '50%',
+          backgroundColor: AOE_COLOR,
+          border: `2px solid ${AOE_BORDER}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        children: {
+          type: 'div',
+          props: {
+            style: {
+              width: innerRadius * 2,
+              height: innerRadius * 2,
+              borderRadius: '50%',
+              backgroundColor: '#2d2640',
+              border: `2px solid ${AOE_BORDER}`,
+            },
+          },
+        },
+      },
+    }
   }
-  return labels[type] ?? ''
+
+  // Line AoE (rectangle)
+  if (type === 'line_aoe' || type === 'line') {
+    const lineWidth = (obj.width ?? 20) * scale
+    const lineHeight = (obj.height ?? 80) * scale
+    return {
+      type: 'div',
+      key: `obj${idx}`,
+      props: {
+        style: {
+          position: 'absolute',
+          left: x - lineWidth / 2,
+          top: y - lineHeight / 2,
+          width: lineWidth,
+          height: lineHeight,
+          backgroundColor: AOE_COLOR,
+          border: `2px solid ${AOE_BORDER}`,
+        },
+      },
+    }
+  }
+
+  // Fan AoE (approximated as pie slice using conic gradient)
+  if (type === 'fan_aoe') {
+    const radius = 200 * objScale * scale
+    const angle = obj.arcAngle ?? 90
+    // Note: Satori doesn't support conic-gradient, so we approximate with a circle
+    return {
+      type: 'div',
+      key: `obj${idx}`,
+      props: {
+        style: {
+          position: 'absolute',
+          left: x - radius,
+          top: y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          borderRadius: '50%',
+          backgroundColor: AOE_COLOR,
+          border: `2px solid ${AOE_BORDER}`,
+          opacity: angle / 360,
+        },
+      },
+    }
+  }
+
+  // Text
+  if (type === 'text') {
+    const fontSize = 16 * scale
+    return {
+      type: 'div',
+      key: `obj${idx}`,
+      props: {
+        style: {
+          position: 'absolute',
+          left: x,
+          top: y,
+          fontSize: fontSize,
+          color: obj.color ?? '#ffffff',
+          transform: 'translate(-50%, -50%)',
+        },
+        children: obj.text ?? 'Text',
+      },
+    }
+  }
+
+  // Try to get embedded icon
+  const iconDataUrl = getIconDataUrl(type)
+  if (iconDataUrl) {
+    const baseSize = ICON_SIZE_DEFAULTS[type] ?? 32
+    const size = baseSize * objScale * scale
+    return {
+      type: 'img',
+      key: `obj${idx}`,
+      props: {
+        src: iconDataUrl,
+        width: size,
+        height: size,
+        style: {
+          position: 'absolute',
+          left: x - size / 2,
+          top: y - size / 2,
+        },
+      },
+    }
+  }
+
+  // Fallback to colored circle
+  const baseSize = ICON_SIZE_DEFAULTS[type] ?? 32
+  const size = baseSize * objScale * scale
+  return {
+    type: 'div',
+    key: `obj${idx}`,
+    props: {
+      style: {
+        position: 'absolute',
+        left: x - size / 2,
+        top: y - size / 2,
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        backgroundColor: '#9333ea',
+      },
+    },
+  }
 }

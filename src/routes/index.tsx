@@ -16,7 +16,7 @@ const EXAMPLE_CODES = [
   {
     name: 'Party Setup',
     description: 'Full 8-player party with positions',
-    code: '[stgy:aExhNRb0xKxN8rxNi2x+88qKL9zxN1exNMNxNG3xKhFxNuNqaeLxK0Vx+h8yKs8ynLqaKYxcB]',
+    code: '[stgy:aGz4kwGPfaf8h3GsnyGY8RcjsvIuShQZmcZtFzkdlUwjlvyIRWEM51OI5bb5wPoW9i5fdIqflSXuQuxO-ssbT0x7z7vVNICXYJLPw7BJrkNEkkdL1PsxTGiDSFSfaQVelWWN705StQ-Cfi25ZbbkEPv2nSuoIdeqFF8554DetpRZgJT+LXbHdZD2nCqwbMyhNX2kFAsLY-RNiNgl+BPNiNOPOLG+NrovN-mG+Qy8MQrjKFGrLUELwIq-]',
   },
   {
     name: 'Crazy Big Test Case',
@@ -67,11 +67,11 @@ function HomePage() {
           <div className="flex items-center justify-center gap-3 mb-6">
             <Grid3X3 className="w-12 h-12 text-primary" />
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-              Strategy Board <span className="text-primary">Viewer</span>
+              board<span className="text-primary text-xl">.wtfdig.info</span>
             </h1>
           </div>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Decode and view FF14 Strategy Board share codes. Paste your code below to see the board visualization.
+            Decode and view FF14 Strategy Board share codes. Paste your code below to see it in your browser.
           </p>
 
           {/* Code Input Form */}
@@ -133,11 +133,23 @@ function HomePage() {
 
       {/* Create Placeholder */}
       <section className="py-12 px-6 max-w-4xl mx-auto border-t border-border">
+        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-primary" />
+          Coming Soon
+        </h2>
+        <Card className="bg-card/30 border-dashed mb-4">
+          <CardHeader className="text-center">
+            <CardTitle className="text-muted-foreground">editor</CardTitle>
+            <CardDescription>
+              create and edit strategy boards
+            </CardDescription>
+          </CardHeader>
+        </Card>
         <Card className="bg-card/30 border-dashed">
           <CardHeader className="text-center">
-            <CardTitle className="text-muted-foreground">Board Editor</CardTitle>
+            <CardTitle className="text-muted-foreground">bundler</CardTitle>
             <CardDescription>
-              Create and edit strategy boards — coming soon!
+              share a collection of boards with one link
             </CardDescription>
           </CardHeader>
         </Card>

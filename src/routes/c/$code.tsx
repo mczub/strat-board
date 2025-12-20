@@ -28,7 +28,7 @@ export const Route = createFileRoute('/c/$code')({
             if (result.name) {
                 title = result.name
             }
-            description = `FF14 Strategy Board with ${result.objects.length} objects`
+            description = `FF14 strat board with ${result.objects.length} objects`
         } catch {
             // Use defaults
         }

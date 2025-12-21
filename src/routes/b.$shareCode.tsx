@@ -20,7 +20,7 @@ export const Route = createFileRoute('/b/$shareCode')({
     component: BundleViewPage,
     head: () => ({
         meta: [
-            { title: `Bundle | FF14 Strategy Board` },
+            { title: `Strategy Board Bundle | board.wtfdig.info` },
             { name: 'description', content: 'View this collection of FF14 strategy boards' },
             // OpenGraph tags
             { property: 'og:title', content: 'Strategy Board Bundle' },

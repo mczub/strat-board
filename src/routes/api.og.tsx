@@ -141,6 +141,20 @@ export const Route = createFileRoute('/api/og')({
                     children: board.name,
                   },
                 } : null,
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      position: 'absolute',
+                      right: offsetX,
+                      top: 34,
+                      fontSize: 20,
+                      fontWeight: 'bold',
+                      color: '#ffffff',
+                    },
+                    children: "board.wtfdig.info for full board",
+                  },
+                },
                 // Board container with children inside
                 {
                   type: 'div',
@@ -236,38 +250,29 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
-  // Donut AoE (approximated as ring)
+  // Donut AoE (using thick border for transparent center)
   if (type === 'donut') {
     const outerRadius = 248 * objScale * scale
     const innerRadius = (obj.donutRadius ?? 100) * scale
+    const ringWidth = outerRadius - innerRadius
+    // The div's actual size is the mean of inner and outer diameter
+    // The thick border extends inward and outward from that
+    const meanRadius = (outerRadius + innerRadius) / 2
     return {
       type: 'div',
       key: `obj${idx}`,
       props: {
         style: {
           position: 'absolute',
-          left: x - outerRadius,
-          top: y - outerRadius,
-          width: outerRadius * 2,
-          height: outerRadius * 2,
+          left: x - meanRadius,
+          top: y - meanRadius,
+          width: meanRadius * 2,
+          height: meanRadius * 2,
           borderRadius: '50%',
-          backgroundColor: AOE_COLOR,
-          border: `2px solid ${AOE_BORDER}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        children: {
-          type: 'div',
-          props: {
-            style: {
-              width: innerRadius * 2,
-              height: innerRadius * 2,
-              borderRadius: '50%',
-              backgroundColor: '#2d2640',
-              border: `2px solid ${AOE_BORDER}`,
-            },
-          },
+          backgroundColor: 'transparent',
+          border: `${ringWidth}px solid ${AOE_COLOR}`,
+          // Outer stroke using outline
+          outline: `2px solid ${AOE_BORDER}`,
         },
       },
     }

@@ -77,9 +77,35 @@ const OVERLAY_TYPES = new Set([
   'checkered_circle', 'checkered_square', 'grey_circle', 'grey_square'
 ])
 
-// AoE colors
+// AoE colors (defaults)
 const AOE_COLOR = 'rgba(255, 123, 0, 0.4)'
 const AOE_BORDER = 'rgba(255, 123, 0, 0.8)'
+const DEFAULT_AOE_COLOR = '#ff7b00'
+
+// Get color for an object (matching StrategyBoardRenderer logic)
+function getObjectColor(obj: StrategyObject): string {
+  if (obj.color) return obj.color
+  if (obj.colorR !== undefined && obj.colorG !== undefined && obj.colorB !== undefined) {
+    return `rgb(${obj.colorR}, ${obj.colorG}, ${obj.colorB})`
+  }
+  return DEFAULT_AOE_COLOR
+}
+
+// Get rgba version of color with alpha
+function getColorWithAlpha(color: string, alpha: number): string {
+  // Handle hex colors
+  if (color.startsWith('#')) {
+    const r = parseInt(color.slice(1, 3), 16)
+    const g = parseInt(color.slice(3, 5), 16)
+    const b = parseInt(color.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+  // Handle rgb colors
+  if (color.startsWith('rgb(')) {
+    return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`)
+  }
+  return color
+}
 
 export const Route = createFileRoute('/api/og')({
   server: {
@@ -108,10 +134,14 @@ export const Route = createFileRoute('/api/og')({
           const offsetY = 80
 
           // Build object elements (positioned relative to board origin)
+          // Reverse so first items in array appear on top (rendered last in z-order)
           const objectElements = board.objects
             .filter(obj => !obj.hidden && !OVERLAY_TYPES.has(obj.type))
             .flatMap((obj, idx) => renderObject(obj, idx, scale, 0, 0)) // flatMap to handle arrays
             .filter(Boolean)
+            .reverse()
+
+          console.log("board", board.objects)
 
           // Build the element tree
           const element = {
@@ -283,6 +313,10 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     const lineWidth = (obj.width ?? 20) * scale
     const lineHeight = (obj.height ?? 80) * scale
     const angle = obj.angle ?? 0
+    const color = getObjectColor(obj)
+    // Use object transparency if specified (0-255), otherwise default alpha values
+    const fillColor = getColorWithAlpha(color, obj.transparency !== undefined ? obj.transparency / 255 : 1)
+    const borderColor = getColorWithAlpha(color, obj.transparency !== undefined ? obj.transparency / 255 : 1)
     return {
       type: 'div',
       key: `obj${idx}`,
@@ -293,8 +327,8 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
           top: y - lineHeight / 2,
           width: lineWidth,
           height: lineHeight,
-          backgroundColor: AOE_COLOR,
-          border: `2px solid ${AOE_BORDER}`,
+          backgroundColor: fillColor,
+          border: `2px solid ${borderColor}`,
           transform: `rotate(${angle}deg)`,
         },
       },
@@ -317,6 +351,9 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     if (length < 1) return null
 
     const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+    const color = getObjectColor(obj)
+    const fillColor = getColorWithAlpha(color, 0.4)
+    const borderColor = getColorWithAlpha(color, 0.8)
 
     // Render at start point and rotate from there
     return {
@@ -329,8 +366,8 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
           top: y - lineWidth / 2,
           width: length,
           height: lineWidth,
-          backgroundColor: AOE_COLOR,
-          border: `2px solid ${AOE_BORDER}`,
+          backgroundColor: fillColor,
+          border: `2px solid ${borderColor}`,
           transformOrigin: 'left center',
           transform: `rotate(${angle}deg)`,
         },
@@ -365,6 +402,7 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
   // Text
   if (type === 'text') {
     const fontSize = 16 * scale
+    const color = getObjectColor(obj)
     return {
       type: 'div',
       key: `obj${idx}`,
@@ -374,7 +412,7 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
           left: x,
           top: y,
           fontSize: fontSize,
-          color: obj.color ?? '#ffffff',
+          color: color,
           transform: 'translate(-50%, -50%)',
         },
         children: obj.text ?? 'Text',

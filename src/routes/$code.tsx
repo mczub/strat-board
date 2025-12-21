@@ -9,11 +9,11 @@ import type { StrategyBoard } from 'xiv-strat-board'
 import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink, Image, Grid } from 'lucide-react'
 import { useState } from 'react'
 
 // Base URL for OG images (absolute URLs required by social platforms)
-const OG_BASE_URL = 'https://board.wtfdig.info'
+const OG_BASE_URL = 'http://localhost:3000'
 
 const makeFullCode = (code: string) => {
     if (code.startsWith('stgy:')) {
@@ -74,6 +74,7 @@ function ViewBoardPage() {
     const { code } = Route.useParams()
     const [copied, setCopied] = useState(false)
     const [urlCopied, setUrlCopied] = useState(false)
+    const [useInGameBackground, setUseInGameBackground] = useState(true)
 
     // Decode the URL-encoded code
     const decodedCode = decodeURIComponent(code)
@@ -159,6 +160,28 @@ function ViewBoardPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center rounded-md border border-border overflow-hidden">
+                            <button
+                                onClick={() => setUseInGameBackground(true)}
+                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-transparent hover:bg-muted'
+                                    }`}
+                            >
+                                <Image className="w-3.5 h-3.5" />
+                                In-Game
+                            </button>
+                            <button
+                                onClick={() => setUseInGameBackground(false)}
+                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-transparent hover:bg-muted'
+                                    }`}
+                            >
+                                <Grid className="w-3.5 h-3.5" />
+                                Simple
+                            </button>
+                        </div>
                         <Button variant="outline" size="sm" onClick={handleCopy}>
                             {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                             Copy Code
@@ -177,6 +200,7 @@ function ViewBoardPage() {
                             <StrategyBoardRenderer
                                 board={board}
                                 className="w-full h-full"
+                                useInGameBackground={useInGameBackground}
                             />
                         </div>
                     </CardContent>

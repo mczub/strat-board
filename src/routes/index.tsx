@@ -102,35 +102,6 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Examples Section */}
-      <section className="py-12 px-6 max-w-4xl mx-auto">
-        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          Example Boards
-        </h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          {EXAMPLE_CODES.map((example) => (
-            <Card
-              key={example.name}
-              className="bg-card/50 border-border hover:border-primary/50 transition-colors cursor-pointer group"
-              onClick={() => handleExampleClick(example.code)}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base group-hover:text-primary transition-colors">
-                  {example.name}
-                </CardTitle>
-                <CardDescription>{example.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <code className="text-xs text-muted-foreground font-mono break-all line-clamp-2">
-                  {example.code}
-                </code>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
       {/* Create Placeholder */}
       <section className="py-12 px-6 max-w-4xl mx-auto border-t border-border">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">

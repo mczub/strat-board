@@ -1,5 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  "routes": [
+    {
+      "pattern": "board.wtfdig.info",
+      "custom_domain": true
+    }
+  ],
   "name": "strat-board",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": [

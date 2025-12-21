@@ -13,7 +13,7 @@ import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink } from 'lucide-reac
 import { useState } from 'react'
 
 // Base URL for OG images (absolute URLs required by social platforms)
-const OG_BASE_URL = 'https://strat-board.mczub.workers.dev'
+const OG_BASE_URL = 'https://board.wtfdig.info'
 
 const makeFullCode = (code: string) => {
     if (code.startsWith('stgy:')) {

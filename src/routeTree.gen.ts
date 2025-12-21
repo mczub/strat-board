@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as CreateRouteImport } from './routes/create'
+import { Route as CodeRouteImport } from './routes/$code'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CCodeRouteImport } from './routes/c/$code'
 import { Route as ApiOgRouteImport } from './routes/api.og'
@@ -17,6 +18,11 @@ import { Route as ApiOgRouteImport } from './routes/api.og'
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CodeRoute = CodeRouteImport.update({
+  id: '/$code',
+  path: '/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,12 +43,14 @@ const ApiOgRoute = ApiOgRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$code': typeof CodeRoute
   '/create': typeof CreateRoute
   '/api/og': typeof ApiOgRoute
   '/c/$code': typeof CCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$code': typeof CodeRoute
   '/create': typeof CreateRoute
   '/api/og': typeof ApiOgRoute
   '/c/$code': typeof CCodeRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$code': typeof CodeRoute
   '/create': typeof CreateRoute
   '/api/og': typeof ApiOgRoute
   '/c/$code': typeof CCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create' | '/api/og' | '/c/$code'
+  fullPaths: '/' | '/$code' | '/create' | '/api/og' | '/c/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create' | '/api/og' | '/c/$code'
-  id: '__root__' | '/' | '/create' | '/api/og' | '/c/$code'
+  to: '/' | '/$code' | '/create' | '/api/og' | '/c/$code'
+  id: '__root__' | '/' | '/$code' | '/create' | '/api/og' | '/c/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CodeRoute: typeof CodeRoute
   CreateRoute: typeof CreateRoute
   ApiOgRoute: typeof ApiOgRoute
   CCodeRoute: typeof CCodeRoute
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/create'
       fullPath: '/create'
       preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$code': {
+      id: '/$code'
+      path: '/$code'
+      fullPath: '/$code'
+      preLoaderRoute: typeof CodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -104,6 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CodeRoute: CodeRoute,
   CreateRoute: CreateRoute,
   ApiOgRoute: ApiOgRoute,
   CCodeRoute: CCodeRoute,

@@ -58,16 +58,16 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
 
     // Mechanics - larger
     stack: 124, stack_multi: 124, line_stack: 124,
-    gaze: 124, proximity: 248, proximity_player: 72,
+    gaze: 124, proximity: 248, proximity_player: 124,
     tankbuster: 72, tower: 64, targeting: 72,
     radial_knockback: 72, linear_knockback: 270,
     moving_circle_aoe: 64,
     '1person_aoe': 48, '2person_aoe': 48, '3person_aoe': 48, '4person_aoe': 48,
 
     // Shapes
-    shape_circle: 32, shape_x: 32, shape_triangle: 32, shape_square: 32,
-    up_arrow: 32, rotate: 32, rotate_clockwise: 32, rotate_counterclockwise: 32,
-    highlighted_circle: 32, highlighted_x: 32, highlighted_square: 32, highlighted_triangle: 32,
+    shape_circle: 48, shape_x: 48, shape_triangle: 48, shape_square: 48,
+    up_arrow: 48, rotate: 48, rotate_clockwise: 48, rotate_counterclockwise: 48,
+    highlighted_circle: 48, highlighted_x: 48, highlighted_square: 48, highlighted_triangle: 48,
 
     // Buffs/Debuffs
     enhancement: 30, enfeeblement: 30,
@@ -75,8 +75,8 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     small_enemy: 64, medium_enemy: 64, large_enemy: 64,
 
     // Backgrounds (field overlays)
-    checkered_circle: 384, checkered_square: 384,
-    grey_circle: 384, grey_square: 384,
+    checkered_circle: 256, checkered_square: 256,
+    grey_circle: 256, grey_square: 256,
 }
 
 // Get base size for an object type

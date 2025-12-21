@@ -47,7 +47,7 @@ function HomePage() {
     }
 
     // Navigate to the view page
-    navigate({ to: '/c/$code', params: { code: encodeURIComponent(cleanCode) } })
+    navigate({ to: '/$code', params: { code: encodeURIComponent(cleanCode) } })
   }
 
   const handleExampleClick = (exampleCode: string) => {
@@ -55,7 +55,7 @@ function HomePage() {
     if (cleanCode.startsWith('[') && cleanCode.endsWith(']')) {
       cleanCode = cleanCode.slice(1, -1)
     }
-    navigate({ to: '/c/$code', params: { code: encodeURIComponent(cleanCode) } })
+    navigate({ to: '/$code', params: { code: encodeURIComponent(cleanCode) } })
   }
 
   return (

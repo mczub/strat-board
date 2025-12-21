@@ -36,13 +36,24 @@ const INCLUDE_ICONS = [
 
     // Markers
     'attack_1', 'attack_2', 'attack_3', 'attack_4',
-    'bind_1', 'bind_2',
+    'attack_5', 'attack_6', 'attack_7', 'attack_8',
+    'bind_1', 'bind_2', 'bind_3',
     'ignore_1', 'ignore_2',
     'circle_marker', 'square_marker', 'triangle_marker', 'plus_marker',
+    'lockon_red', 'lockon_blue', 'lockon_purple', 'lockon_green',
 
     // Shapes
     'shape_circle', 'shape_square', 'shape_triangle', 'shape_x',
-    'up_arrow', 'rotate',
+    'up_arrow', 'rotate', 'rotate_clockwise', 'rotate_counterclockwise',
+    'highlighted_circle', 'highlighted_x', 'highlighted_square', 'highlighted_triangle',
+
+    // Buffs/Debuffs
+    'enhancement', 'enfeeblement',
+
+    // Mechanics (with count support)
+    'linear_knockback', 'radial_knockback', 'line_stack',
+    'stack', 'stack_multi', 'gaze', 'proximity', 'proximity_player',
+    'tankbuster', 'tower', 'targeting', 'moving_circle_aoe',
 
     // Jobs - Tanks
     'paladin', 'warrior', 'dark_knight', 'gunbreaker',

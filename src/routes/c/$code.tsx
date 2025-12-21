@@ -59,6 +59,7 @@ export const Route = createFileRoute('/c/$code')({
 function ViewBoardPage() {
     const { code } = Route.useParams()
     const [copied, setCopied] = useState(false)
+    const [urlCopied, setUrlCopied] = useState(false)
 
     // Decode the URL-encoded code
     const decodedCode = decodeURIComponent(code)
@@ -86,8 +87,8 @@ function ViewBoardPage() {
 
     const handleCopyUrl = async () => {
         await navigator.clipboard.writeText(window.location.href)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        setUrlCopied(true)
+        setTimeout(() => setUrlCopied(false), 2000)
     }
 
     if (error) {
@@ -150,7 +151,7 @@ function ViewBoardPage() {
                             Copy Code
                         </Button>
                         <Button variant="outline" size="sm" onClick={handleCopyUrl}>
-                            <ExternalLink className="w-4 h-4 mr-2" />
+                            {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
                             Share URL
                         </Button>
                     </div>

@@ -38,6 +38,7 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     bind_1: 30, bind_2: 30, bind_3: 30,
     ignore_1: 30, ignore_2: 30,
     square_marker: 30, circle_marker: 30, plus_marker: 30, triangle_marker: 30,
+    lockon_red: 30, lockon_blue: 30, lockon_purple: 30, lockon_green: 30,
 
     // Role/job icons
     tank: 28, tank_1: 28, tank_2: 28,
@@ -56,16 +57,20 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     archer: 28, conjurer: 28, thaumaturge: 28, arcanist: 28, rogue: 28,
 
     // Mechanics - larger
-    stack: 124, stack_multi: 124, line_stack: 48,
+    stack: 124, stack_multi: 124, line_stack: 124,
     gaze: 124, proximity: 248, proximity_player: 72,
     tankbuster: 72, tower: 64, targeting: 72,
-    radial_knockback: 72, linear_knockback: 72,
+    radial_knockback: 72, linear_knockback: 270,
     moving_circle_aoe: 64,
     '1person_aoe': 48, '2person_aoe': 48, '3person_aoe': 48, '4person_aoe': 48,
 
     // Shapes
     shape_circle: 32, shape_x: 32, shape_triangle: 32, shape_square: 32,
-    up_arrow: 32, rotate: 32,
+    up_arrow: 32, rotate: 32, rotate_clockwise: 32, rotate_counterclockwise: 32,
+    highlighted_circle: 32, highlighted_x: 32, highlighted_square: 32, highlighted_triangle: 32,
+
+    // Buffs/Debuffs
+    enhancement: 30, enfeeblement: 30,
 
     small_enemy: 64, medium_enemy: 64, large_enemy: 64,
 
@@ -113,6 +118,78 @@ function renderImageObject(obj: StrategyObject, index: number): JSX.Element | nu
     // Center the image on the coordinates
     const halfSize = size / 2
 
+    // Build transform for rotation and flip
+    const transforms: string[] = []
+
+    // Rotation (angle property) - rotate around the object center
+    if (obj.angle) {
+        transforms.push(`rotate(${obj.angle} ${x} ${y})`)
+    }
+
+    // Flip transforms - scale around the object center
+    if (obj.horizontalFlip || obj.verticalFlip) {
+        const scaleX = obj.horizontalFlip ? -1 : 1
+        const scaleY = obj.verticalFlip ? -1 : 1
+        // Translate to origin, scale, translate back
+        transforms.push(`translate(${x} ${y}) scale(${scaleX} ${scaleY}) translate(${-x} ${-y})`)
+    }
+
+    const transform = transforms.length > 0 ? transforms.join(' ') : undefined
+
+    // Special handling for linear_knockback (grid of icons)
+    if (type === 'linear_knockback') {
+        const hCount = obj.horizontalCount ?? 1
+        const vCount = obj.verticalCount ?? 1
+        const images: JSX.Element[] = []
+        const spacing = size * 0.91 // Overlap slightly
+
+        for (let row = 0; row < vCount; row++) {
+            for (let col = 0; col < hCount; col++) {
+                const offsetX = (col - (hCount - 1) / 2) * spacing
+                const offsetY = (row - (vCount - 1) / 2) * spacing
+                images.push(
+                    <image
+                        key={`${index}-${row}-${col}`}
+                        href={`/icons/${type}.png`}
+                        x={x - halfSize + offsetX}
+                        y={y - halfSize + offsetY}
+                        width={size}
+                        height={size}
+                        opacity={opacity}
+                        preserveAspectRatio="xMidYMid meet"
+                        transform={transform}
+                    />
+                )
+            }
+        }
+        return <>{images}</>
+    }
+
+    // Special handling for line_stack (vertical repeat)
+    if (type === 'line_stack') {
+        const displayCount = obj.displayCount ?? 1
+        const images: JSX.Element[] = []
+        const spacing = size * 1.04 // Space slightly
+
+        for (let i = 0; i < displayCount; i++) {
+            const offsetY = (i - (displayCount - 1) / 2) * spacing
+            images.push(
+                <image
+                    key={`${index}-${i}`}
+                    href={`/icons/${type}.png`}
+                    x={x - halfSize}
+                    y={y - halfSize + offsetY}
+                    width={size}
+                    height={size}
+                    opacity={opacity}
+                    preserveAspectRatio="xMidYMid meet"
+                    transform={transform}
+                />
+            )
+        }
+        return <>{images}</>
+    }
+
     return (
         <image
             key={index}
@@ -123,6 +200,7 @@ function renderImageObject(obj: StrategyObject, index: number): JSX.Element | nu
             height={size}
             opacity={opacity}
             preserveAspectRatio="xMidYMid meet"
+            transform={transform}
         />
     )
 }
@@ -330,10 +408,10 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         )
     }
 
-    // Line AoE (rectangle)
-    if (type === 'line_aoe' || type === 'line') {
-        const width = (obj.width ?? 20 * scale)
-        const height = (obj.height ?? 80 * scale)
+    // Line AoE (rectangle centered at x,y)
+    if (type === 'line_aoe') {
+        const width = (obj.width ?? 20)
+        const height = (obj.height ?? 80)
         return (
             <rect
                 key={index}
@@ -346,11 +424,32 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
                 stroke={color}
                 strokeWidth={2}
                 strokeOpacity={opacity}
+                transform={obj.angle ? `rotate(${obj.angle} ${x} ${y})` : undefined}
             />
         )
     }
 
-    // Text (placeholder - would need text content)
+    // Line (from start point to end point)
+    if (type === 'line') {
+        const endX = obj.endX ?? x
+        const endY = obj.endY ?? y
+        const strokeWidth = (obj.height ?? 20)
+        return (
+            <line
+                key={index}
+                x1={x}
+                y1={y}
+                x2={endX}
+                y2={endY}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                strokeOpacity={opacity}
+                strokeLinecap="square"
+            />
+        )
+    }
+
+    // Text
     if (type === 'text') {
         const size = 16 * scale
         return (

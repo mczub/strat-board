@@ -32,19 +32,35 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
   white_mage: 28, black_mage: 28, summoner: 28, scholar: 28,
   ninja: 28, machinist: 28, dark_knight: 28, astrologian: 28,
   samurai: 28, red_mage: 28, gunbreaker: 28, dancer: 28,
-  reaper: 28, sage: 28, viper: 28, pictomancer: 28,
+  reaper: 28, sage: 28, viper: 28, pictomancer: 28, blue_mage: 28,
+  gladiator: 28, marauder: 28, pugilist: 28, lancer: 28,
+  archer: 28, conjurer: 28, thaumaturge: 28, arcanist: 28, rogue: 28,
 
   // Enemies
   small_enemy: 64, medium_enemy: 64, large_enemy: 90,
 
   // Markers
   attack_1: 30, attack_2: 30, attack_3: 30, attack_4: 30,
-  bind_1: 30, bind_2: 30, ignore_1: 30, ignore_2: 30,
+  attack_5: 30, attack_6: 30, attack_7: 30, attack_8: 30,
+  bind_1: 30, bind_2: 30, bind_3: 30,
+  ignore_1: 30, ignore_2: 30,
   circle_marker: 30, square_marker: 30, triangle_marker: 30, plus_marker: 30,
+  lockon_red: 30, lockon_blue: 30, lockon_purple: 30, lockon_green: 30,
 
   // Shapes
   shape_circle: 32, shape_square: 32, shape_triangle: 32, shape_x: 32,
-  up_arrow: 32, rotate: 32,
+  up_arrow: 32, rotate: 32, rotate_clockwise: 32, rotate_counterclockwise: 32,
+  highlighted_circle: 32, highlighted_x: 32, highlighted_square: 32, highlighted_triangle: 32,
+
+  // Buffs/Debuffs
+  enhancement: 30, enfeeblement: 30,
+
+  // Mechanics - larger
+  stack: 124, stack_multi: 124, line_stack: 124,
+  gaze: 124, proximity: 248, proximity_player: 72,
+  tankbuster: 72, tower: 64, targeting: 72,
+  radial_knockback: 72, linear_knockback: 270,
+  moving_circle_aoe: 64,
 
   // Geometric AoEs (base size)
   circle_aoe: 248, donut: 248, fan_aoe: 200,
@@ -94,7 +110,7 @@ export const Route = createFileRoute('/api/og')({
           // Build object elements (positioned relative to board origin)
           const objectElements = board.objects
             .filter(obj => !obj.hidden && !OVERLAY_TYPES.has(obj.type))
-            .map((obj, idx) => renderObject(obj, idx, scale, 0, 0)) // relative to board
+            .flatMap((obj, idx) => renderObject(obj, idx, scale, 0, 0)) // flatMap to handle arrays
             .filter(Boolean)
 
           // Build the element tree
@@ -257,10 +273,11 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
-  // Line AoE (rectangle)
-  if (type === 'line_aoe' || type === 'line') {
+  // Line AoE (rectangle centered at x,y with rotation)
+  if (type === 'line_aoe') {
     const lineWidth = (obj.width ?? 20) * scale
     const lineHeight = (obj.height ?? 80) * scale
+    const angle = obj.angle ?? 0
     return {
       type: 'div',
       key: `obj${idx}`,
@@ -273,6 +290,44 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
           height: lineHeight,
           backgroundColor: AOE_COLOR,
           border: `2px solid ${AOE_BORDER}`,
+          transform: `rotate(${angle}deg)`,
+        },
+      },
+    }
+  }
+
+  // Line (from start point to end point)
+  // Note: Satori doesn't support complex transforms well, so we simplify
+  if (type === 'line') {
+    const endX = (obj.endX ?? obj.x) * scale + offsetX
+    const endY = (obj.endY ?? obj.y) * scale + offsetY
+    const lineWidth = (obj.height ?? 20) * scale
+
+    // Calculate length and angle
+    const dx = endX - x
+    const dy = endY - y
+    const length = Math.sqrt(dx * dx + dy * dy)
+
+    // If no length, skip
+    if (length < 1) return null
+
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+    // Render at start point and rotate from there
+    return {
+      type: 'div',
+      key: `obj${idx}`,
+      props: {
+        style: {
+          position: 'absolute',
+          left: x,
+          top: y - lineWidth / 2,
+          width: length,
+          height: lineWidth,
+          backgroundColor: AOE_COLOR,
+          border: `2px solid ${AOE_BORDER}`,
+          transformOrigin: 'left center',
+          transform: `rotate(${angle}deg)`,
         },
       },
     }
@@ -322,11 +377,102 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
+  // Build transform string for rotation and flip
+  const transforms: string[] = []
+  if (obj.angle) {
+    transforms.push(`rotate(${obj.angle}deg)`)
+  }
+  if (obj.horizontalFlip) {
+    transforms.push('scaleX(-1)')
+  }
+  if (obj.verticalFlip) {
+    transforms.push('scaleY(-1)')
+  }
+  const transform = transforms.length > 0 ? transforms.join(' ') : null
+
   // Try to get embedded icon
   const iconDataUrl = getIconDataUrl(type)
   if (iconDataUrl) {
     const baseSize = ICON_SIZE_DEFAULTS[type] ?? 32
     const size = baseSize * objScale * scale
+
+    // Special handling for linear_knockback (grid of icons)
+    if (type === 'linear_knockback') {
+      const hCount = obj.horizontalCount ?? 1
+      const vCount = obj.verticalCount ?? 1
+      // Use baseSize for spacing calculation (same as StrategyBoardRenderer)
+      const baseSpacing = baseSize * objScale * 0.91
+      const spacing = baseSpacing * scale
+      const children = []
+
+      // Convert angle to radians for rotation calculation
+      const angleRad = (obj.angle ?? 0) * Math.PI / 180
+      const cos = Math.cos(angleRad)
+      const sin = Math.sin(angleRad)
+
+      for (let row = 0; row < vCount; row++) {
+        for (let col = 0; col < hCount; col++) {
+          // Calculate unrotated grid offsets
+          const rawOffsetX = (col - (hCount - 1) / 2) * spacing
+          const rawOffsetY = (row - (vCount - 1) / 2) * spacing
+
+          // Rotate offsets around the center point
+          const gridOffsetX = rawOffsetX * cos - rawOffsetY * sin
+          const gridOffsetY = rawOffsetX * sin + rawOffsetY * cos
+
+          children.push({
+            type: 'img',
+            key: `${idx}-${row}-${col}`,
+            props: {
+              src: iconDataUrl,
+              width: size,
+              height: size,
+              style: {
+                position: 'absolute',
+                left: x - size / 2 + gridOffsetX,
+                top: y - size / 2 + gridOffsetY,
+                ...(transform && { transform }),
+              },
+            },
+          })
+        }
+      }
+      // Return first child if single, otherwise use wrapper
+      if (children.length === 1) return children[0]
+      return children
+    }
+
+    // Special handling for line_stack (vertical repeat)
+    if (type === 'line_stack') {
+      const displayCount = obj.displayCount ?? 1
+      // Use baseSize for spacing calculation (same as StrategyBoardRenderer)
+      const baseSpacing = baseSize * objScale * 1.04
+      const spacing = baseSpacing * scale
+      const children = []
+
+      for (let i = 0; i < displayCount; i++) {
+        const gridOffsetY = (i - (displayCount - 1) / 2) * spacing
+        children.push({
+          type: 'img',
+          key: `${idx}-${i}`,
+          props: {
+            src: iconDataUrl,
+            width: size,
+            height: size,
+            style: {
+              position: 'absolute',
+              left: x - size / 2,
+              top: y - size / 2 + gridOffsetY,
+              ...(transform && { transform }),
+            },
+          },
+        })
+      }
+      // Return first child if single, otherwise use wrapper
+      if (children.length === 1) return children[0]
+      return children
+    }
+
     return {
       type: 'img',
       key: `obj${idx}`,
@@ -338,6 +484,7 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
           position: 'absolute',
           left: x - size / 2,
           top: y - size / 2,
+          ...(transform && { transform }),
         },
       },
     }
@@ -358,6 +505,7 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
         height: size,
         borderRadius: '50%',
         backgroundColor: '#9333ea',
+        ...(transform && { transform }),
       },
     },
   }

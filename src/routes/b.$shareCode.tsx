@@ -186,6 +186,7 @@ function BundleViewPage() {
                                         <StrategyBoardRenderer
                                             board={item.board}
                                             className="w-full h-full"
+                                            useInGameBackground={true}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-muted/30">

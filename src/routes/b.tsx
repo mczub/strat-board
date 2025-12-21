@@ -262,6 +262,7 @@ function BundleEditorPage() {
                                             <StrategyBoardRenderer
                                                 board={slot.board}
                                                 className="w-full h-full"
+                                                useInGameBackground={true}
                                             />
                                         ) : (
                                             <p className="text-sm text-muted-foreground">

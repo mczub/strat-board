@@ -18,6 +18,9 @@
       "id": "ba88d5812bb94f7db766519c2a081210"
     }
   ],
+  "limits": {
+    "cpu_ms": 1000,
+  },
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,

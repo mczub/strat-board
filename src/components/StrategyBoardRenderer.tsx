@@ -96,7 +96,7 @@ function getScaledSize(obj: StrategyObject): number {
 // Get opacity for an object
 function getObjectOpacity(obj: StrategyObject): number {
     if (obj.hidden) return 0
-    if (obj.transparency !== undefined) return obj.transparency / 255
+    if (obj.transparency !== undefined) return 1 - (obj.transparency / 100)
     return 1
 }
 
@@ -236,18 +236,37 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
     // Donut AoE
     // Like fan AoE, coordinates represent bounding box center for partial arcs
+    // arcAngle = the angle of the donut arc (how much of the ring is visible)
+    // angle = the rotation of the entire donut (where it points)
     if (type === 'donut') {
         const outerRadius = 248 * scale
         const innerRadius = obj.donutRadius !== undefined
             ? obj.donutRadius * scale
             : outerRadius * 0.4
-        const angle = obj.arcAngle ?? 360
-        const angleRad = (angle * Math.PI) / 180
+        const arcAngle = obj.arcAngle ?? 360
+        const rotation = obj.angle ?? 0 // Rotation of the donut
+        const arcAngleRad = (arcAngle * Math.PI) / 180
+
+        // Build transform for rotation and flips
+        const buildTransform = (centerX: number, centerY: number): string | undefined => {
+            const transforms: string[] = []
+            if (rotation) {
+                transforms.push(`rotate(${rotation} ${centerX} ${centerY})`)
+            }
+            if (obj.horizontalFlip) {
+                transforms.push(`translate(${2 * centerX} 0) scale(-1 1)`)
+            }
+            if (obj.verticalFlip) {
+                transforms.push(`translate(0 ${2 * centerY}) scale(1 -1)`)
+            }
+            return transforms.length > 0 ? transforms.join(' ') : undefined
+        }
 
         // Full circle donut - simple rendering
-        if (angle >= 360) {
+        if (arcAngle >= 360) {
+            const transform = buildTransform(x, y)
             return (
-                <g key={index} opacity={opacity}>
+                <g key={index} opacity={opacity} transform={transform}>
                     <circle cx={x} cy={y} r={outerRadius} fill={color} fillOpacity={0.3} />
                     <circle cx={x} cy={y} r={innerRadius} fill="var(--card)" />
                     <circle cx={x} cy={y} r={outerRadius} fill="none" stroke={color} strokeWidth={2} />
@@ -261,9 +280,9 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         // Need to compute bounding box of this asymmetric arc
 
         // Calculate bounding box extremes
-        // Start angle is -90° (north), end angle is -90° + angle
+        // Start angle is -90° (north), end angle is -90° + arcAngle
         const startAngleRad = -Math.PI / 2
-        const endAngleRad = startAngleRad + angleRad
+        const endAngleRad = startAngleRad + arcAngleRad
 
         // Find min/max X and Y of the arc (must include BOTH inner and outer edges)
         // Start points
@@ -303,7 +322,7 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         // Arc angles for SVG path
         // 0° = north, arc sweeps clockwise
         const startAngle = -90 // North in SVG coordinates
-        const endAngle = -90 + angle
+        const endAngle = -90 + arcAngle
         const startRad = (startAngle * Math.PI) / 180
         const endRad = (endAngle * Math.PI) / 180
 
@@ -319,7 +338,7 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const ix2 = centerX + innerRadius * Math.cos(endRad)
         const iy2 = centerY + innerRadius * Math.sin(endRad)
 
-        const largeArc = angle > 180 ? 1 : 0
+        const largeArc = arcAngle > 180 ? 1 : 0
 
         // Path: outer arc, line to inner, inner arc (reversed), line back
         const d = `
@@ -330,15 +349,18 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
             Z
         `
 
+        const transform = buildTransform(x, y)
+
         return (
             <path
                 key={index}
                 d={d}
                 fill={color}
-                fillOpacity={opacity * 0.3}
+                fillOpacity={opacity}
                 stroke={color}
                 strokeWidth={2}
                 strokeOpacity={opacity}
+                transform={transform}
             />
         )
     }
@@ -346,15 +368,18 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
     // Fan AoE (cone)
     // Note: Game coordinates represent the bounding box center, not the cone tip.
     // For arcs < 360°, we need to offset to find the actual cone tip position.
+    // arcAngle = the angle of the fan arc (how wide the cone is)
+    // angle = the rotation of the entire fan (where it points)
     if (type === 'fan_aoe') {
-        const radius = 60 * scale
-        const angle = obj.arcAngle ?? 90
-        const angleRad = (angle * Math.PI) / 180
+        const radius = 240 * scale
+        const arcAngle = obj.arcAngle ?? 90
+        const rotation = obj.angle ?? 0 // Rotation of the fan
+        const arcAngleRad = (arcAngle * Math.PI) / 180
 
         // Calculate bounding box for asymmetric arc starting at north
         // Arc starts at north (0° = -90° in SVG) and sweeps clockwise
         const startAngleRad = -Math.PI / 2
-        const endAngleRad = startAngleRad + angleRad
+        const endAngleRad = startAngleRad + arcAngleRad
 
         // Bounding box includes the cone tip (0,0) and the arc
         // For a cone, the tip is always at (0,0) relative to itself
@@ -383,7 +408,7 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
         // 0° = north, arc sweeps clockwise
         const startAngle = -90 // North in SVG coordinates
-        const endAngle = -90 + angle
+        const endAngle = -90 + arcAngle
 
         const startRad = (startAngle * Math.PI) / 180
         const endRad = (endAngle * Math.PI) / 180
@@ -393,19 +418,35 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const x2 = tipX + radius * Math.cos(endRad)
         const y2 = tipY + radius * Math.sin(endRad)
 
-        const largeArc = angle > 180 ? 1 : 0
+        const largeArc = arcAngle > 180 ? 1 : 0
 
         const d = `M ${tipX} ${tipY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`
+
+        // Build transform for rotation and flips
+        // All transforms are applied around the input x,y point (bounding box center)
+        const transforms: string[] = []
+        if (rotation) {
+            transforms.push(`rotate(${rotation} ${x} ${y})`)
+        }
+        // For flips, we need to translate to origin, scale, then translate back
+        if (obj.horizontalFlip) {
+            transforms.push(`translate(${2 * x} 0) scale(-1 1)`)
+        }
+        if (obj.verticalFlip) {
+            transforms.push(`translate(0 ${2 * y}) scale(1 -1)`)
+        }
+        const transform = transforms.length > 0 ? transforms.join(' ') : undefined
 
         return (
             <path
                 key={index}
                 d={d}
                 fill={color}
-                fillOpacity={opacity * 0.3}
+                fillOpacity={opacity * 0.4}
                 stroke={color}
                 strokeWidth={2}
                 strokeOpacity={opacity}
+                transform={transform}
             />
         )
     }

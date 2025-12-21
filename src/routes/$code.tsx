@@ -88,6 +88,7 @@ function ViewBoardPage() {
         const fullCode = makeFullCode(decodedCode)
         const result = decode(fullCode)
         board = result
+        console.log("board", board)
     } catch (e) {
         error = e instanceof Error ? e.message : 'Failed to decode strategy board'
     }

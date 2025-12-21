@@ -12,6 +12,12 @@
     "nodejs_compat"
   ],
   "main": "@tanstack/react-start/server-entry",
+  "kv_namespaces": [
+    {
+      "binding": "BUNDLE_STORE",
+      "id": "ba88d5812bb94f7db766519c2a081210"
+    }
+  ],
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,

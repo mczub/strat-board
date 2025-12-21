@@ -10,14 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as CreateRouteImport } from './routes/create'
+import { Route as BRouteImport } from './routes/b'
 import { Route as CodeRouteImport } from './routes/$code'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CCodeRouteImport } from './routes/c/$code'
+import { Route as BShareCodeRouteImport } from './routes/b.$shareCode'
 import { Route as ApiOgRouteImport } from './routes/api.og'
 
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BRoute = BRouteImport.update({
+  id: '/b',
+  path: '/b',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CodeRoute = CodeRouteImport.update({
@@ -35,6 +42,11 @@ const CCodeRoute = CCodeRouteImport.update({
   path: '/c/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BShareCodeRoute = BShareCodeRouteImport.update({
+  id: '/$shareCode',
+  path: '/$shareCode',
+  getParentRoute: () => BRoute,
+} as any)
 const ApiOgRoute = ApiOgRouteImport.update({
   id: '/api/og',
   path: '/api/og',
@@ -44,36 +56,65 @@ const ApiOgRoute = ApiOgRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$code': typeof CodeRoute
+  '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
   '/api/og': typeof ApiOgRoute
+  '/b/$shareCode': typeof BShareCodeRoute
   '/c/$code': typeof CCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$code': typeof CodeRoute
+  '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
   '/api/og': typeof ApiOgRoute
+  '/b/$shareCode': typeof BShareCodeRoute
   '/c/$code': typeof CCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$code': typeof CodeRoute
+  '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
   '/api/og': typeof ApiOgRoute
+  '/b/$shareCode': typeof BShareCodeRoute
   '/c/$code': typeof CCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$code' | '/create' | '/api/og' | '/c/$code'
+  fullPaths:
+    | '/'
+    | '/$code'
+    | '/b'
+    | '/create'
+    | '/api/og'
+    | '/b/$shareCode'
+    | '/c/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$code' | '/create' | '/api/og' | '/c/$code'
-  id: '__root__' | '/' | '/$code' | '/create' | '/api/og' | '/c/$code'
+  to:
+    | '/'
+    | '/$code'
+    | '/b'
+    | '/create'
+    | '/api/og'
+    | '/b/$shareCode'
+    | '/c/$code'
+  id:
+    | '__root__'
+    | '/'
+    | '/$code'
+    | '/b'
+    | '/create'
+    | '/api/og'
+    | '/b/$shareCode'
+    | '/c/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CodeRoute: typeof CodeRoute
+  BRoute: typeof BRouteWithChildren
   CreateRoute: typeof CreateRoute
   ApiOgRoute: typeof ApiOgRoute
   CCodeRoute: typeof CCodeRoute
@@ -86,6 +127,13 @@ declare module '@tanstack/react-router' {
       path: '/create'
       fullPath: '/create'
       preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/b': {
+      id: '/b'
+      path: '/b'
+      fullPath: '/b'
+      preLoaderRoute: typeof BRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$code': {
@@ -109,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/b/$shareCode': {
+      id: '/b/$shareCode'
+      path: '/$shareCode'
+      fullPath: '/b/$shareCode'
+      preLoaderRoute: typeof BShareCodeRouteImport
+      parentRoute: typeof BRoute
+    }
     '/api/og': {
       id: '/api/og'
       path: '/api/og'
@@ -119,9 +174,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface BRouteChildren {
+  BShareCodeRoute: typeof BShareCodeRoute
+}
+
+const BRouteChildren: BRouteChildren = {
+  BShareCodeRoute: BShareCodeRoute,
+}
+
+const BRouteWithChildren = BRoute._addFileChildren(BRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CodeRoute: CodeRoute,
+  BRoute: BRouteWithChildren,
   CreateRoute: CreateRoute,
   ApiOgRoute: ApiOgRoute,
   CCodeRoute: CCodeRoute,

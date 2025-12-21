@@ -2,7 +2,7 @@
  * Home page - View Strategy Board codes
  */
 
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { ArrowRight, Grid3X3, Sparkles, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -102,6 +102,19 @@ function HomePage() {
         </div>
       </section>
 
+      <section className="py-12 px-6 max-w-4xl mx-auto border-t border-border">
+        <Link to="/b">
+          <Card className="bg-card/30 border-primary/30 hover:border-primary/50 transition-colors cursor-pointer">
+            <CardHeader className="text-center">
+              <CardTitle className="text-primary">bundler</CardTitle>
+              <CardDescription>
+                share a collection of boards with one link
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+      </section>
+
       {/* Create Placeholder */}
       <section className="py-12 px-6 max-w-4xl mx-auto border-t border-border">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
@@ -113,14 +126,6 @@ function HomePage() {
             <CardTitle className="text-muted-foreground">editor</CardTitle>
             <CardDescription>
               create and edit strategy boards
-            </CardDescription>
-          </CardHeader>
-        </Card>
-        <Card className="bg-card/30 border-dashed">
-          <CardHeader className="text-center">
-            <CardTitle className="text-muted-foreground">bundler</CardTitle>
-            <CardDescription>
-              share a collection of boards with one link
             </CardDescription>
           </CardHeader>
         </Card>

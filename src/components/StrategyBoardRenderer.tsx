@@ -5,6 +5,7 @@
  * Uses PNG images from /icons/ for most objects, SVG for geometric primitives.
  */
 
+import { JSX } from 'react'
 import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
 
 interface StrategyBoardRendererProps {
@@ -12,6 +13,7 @@ interface StrategyBoardRendererProps {
     width?: number
     height?: number
     className?: string
+    useInGameBackground?: boolean
 }
 
 // Board dimensions (from FORMAT.md)
@@ -490,30 +492,45 @@ function renderObject(obj: StrategyObject, index: number): JSX.Element | null {
     return renderImageObject(obj, index)
 }
 
+// Map board background type to in-game background image filename
+function getInGameBackgroundPath(background?: string): string {
+    if (!background || background === 'none') {
+        return '/bg/none-bg.webp'
+    }
+    // Map the background types to the webp filenames
+    const bgMap: Record<string, string> = {
+        'checkered': '/bg/checkered-bg.webp',
+        'checkered_circle': '/bg/checkered-circle-bg.webp',
+        'checkered_square': '/bg/checkered-square-bg.webp',
+        'grey': '/bg/grey-bg.webp',
+        'grey_circle': '/bg/grey-circle-bg.webp',
+        'grey_square': '/bg/grey-square-bg.webp',
+    }
+    return bgMap[background] || '/bg/none-bg.webp'
+}
+
 // Render board background
-function renderBackground(background?: string): JSX.Element {
+function renderBackground(background?: string, useInGameBackground?: boolean): JSX.Element {
     const bgColor = 'var(--card)'
 
-    if (!background || background === 'none') {
-        return <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill={bgColor} />
+    // In-game background mode - use webp images
+    if (useInGameBackground) {
+        const bgPath = getInGameBackgroundPath(background)
+        return (
+            <image
+                href={bgPath}
+                x={0}
+                y={0}
+                width={BOARD_WIDTH}
+                height={BOARD_HEIGHT}
+                preserveAspectRatio="xMidYMid slice"
+            />
+        )
     }
 
-    // Use image for specific backgrounds
-    if (background === 'checkered_circle' || background === 'checkered_square' ||
-        background === 'grey_circle' || background === 'grey_square') {
-        return (
-            <g>
-                <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill={bgColor} />
-                <image
-                    href={`/icons/${background}.png`}
-                    x={0}
-                    y={0}
-                    width={BOARD_WIDTH}
-                    height={BOARD_HEIGHT}
-                    preserveAspectRatio="xMidYMid meet"
-                />
-            </g>
-        )
+    // Simple mode - original rendering
+    if (!background) {
+        return <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill={bgColor} />
     }
 
     // Default checkered/grey backgrounds - draw grid
@@ -545,6 +562,7 @@ export function StrategyBoardRenderer({
     width = 512,
     height = 384,
     className = '',
+    useInGameBackground = false,
 }: StrategyBoardRendererProps) {
     const viewBox = `0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`
 
@@ -556,7 +574,7 @@ export function StrategyBoardRenderer({
             className={className}
             style={{ maxWidth: '100%', height: 'auto' }}
         >
-            {renderBackground(board.boardBackground)}
+            {renderBackground(board.boardBackground, useInGameBackground)}
             {board.objects.map((obj, i) => renderObject(obj, i)).reverse()}
         </svg>
     )

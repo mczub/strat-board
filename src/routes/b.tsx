@@ -163,7 +163,7 @@ function BundleEditorPage() {
     const hasInvalidCodes = slots.some(s => s.code.trim() && s.error !== null)
 
     return (
-        <div className="md:max-h-[calc(100vh-3.5rem)] py-4 px-4">
+        <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4 flex-col md:flex-row gap-4">

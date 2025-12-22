@@ -141,8 +141,6 @@ export const Route = createFileRoute('/api/og')({
             .filter(Boolean)
             .reverse()
 
-          console.log("board", board.objects)
-
           // Build the element tree
           const element = {
             type: 'div',

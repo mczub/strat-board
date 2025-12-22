@@ -76,6 +76,15 @@ function ViewBoardPage() {
     const [urlCopied, setUrlCopied] = useState(false)
     const [useInGameBackground, setUseInGameBackground] = useState(true)
     const [useSeparateDps, setUseSeparateDps] = useState(false)
+    const [highlightIndex, setHighlightIndex] = useState(0) // 0 = None, 1-8 = roles
+
+    // Highlight options depend on DPS mode (index 0 = None)
+    const unifiedRoles = ['None', 'MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4']
+    const separateRoles = ['None', 'MT', 'OT', 'H1', 'H2', 'M1', 'M2', 'R1', 'R2']
+    const highlightOptions = useSeparateDps ? separateRoles : unifiedRoles
+
+    // Get the actual role to pass to renderer (empty string for None)
+    const highlightRole = highlightIndex === 0 ? '' : highlightOptions[highlightIndex]
 
     // Decode the URL-encoded code
     const decodedCode = decodeURIComponent(code)
@@ -176,53 +185,73 @@ function ViewBoardPage() {
                 </div>
 
                 <div className="flex items-center justify-end mb-4 flex-col md:flex-row gap-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-4 flex-wrap justify-end">
+                        {/* Highlight Select */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Highlight</span>
+                            <select
+                                value={highlightIndex}
+                                onChange={(e) => setHighlightIndex(Number(e.target.value))}
+                                className="h-8 px-2 rounded-md border border-border bg-background text-sm"
+                            >
+                                {highlightOptions.map((opt, idx) => (
+                                    <option key={idx} value={idx}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         {/* DPS Marker Toggle */}
-                        <div className="flex items-center rounded-md border border-border overflow-hidden">
-                            <button
-                                onClick={() => setUseSeparateDps(false)}
-                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                <Users className="w-3.5 h-3.5" />
-                                Unified
-                            </button>
-                            <button
-                                onClick={() => setUseSeparateDps(true)}
-                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                <Split className="w-3.5 h-3.5" />
-                                Separate
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">DPS</span>
+                            <div className="flex items-center rounded-md border border-border overflow-hidden">
+                                <button
+                                    onClick={() => setUseSeparateDps(false)}
+                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-transparent hover:bg-muted'
+                                        }`}
+                                >
+                                    <Users className="w-3.5 h-3.5" />
+                                    Unified
+                                </button>
+                                <button
+                                    onClick={() => setUseSeparateDps(true)}
+                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-transparent hover:bg-muted'
+                                        }`}
+                                >
+                                    <Split className="w-3.5 h-3.5" />
+                                    Separate
+                                </button>
+                            </div>
                         </div>
 
                         {/* Background Toggle */}
-                        <div className="flex items-center rounded-md border border-border overflow-hidden">
-                            <button
-                                onClick={() => setUseInGameBackground(true)}
-                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                <Image className="w-3.5 h-3.5" />
-                                In-Game
-                            </button>
-                            <button
-                                onClick={() => setUseInGameBackground(false)}
-                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                <Grid className="w-3.5 h-3.5" />
-                                Simple
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">BG</span>
+                            <div className="flex items-center rounded-md border border-border overflow-hidden">
+                                <button
+                                    onClick={() => setUseInGameBackground(true)}
+                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-transparent hover:bg-muted'
+                                        }`}
+                                >
+                                    <Image className="w-3.5 h-3.5" />
+                                    In-Game
+                                </button>
+                                <button
+                                    onClick={() => setUseInGameBackground(false)}
+                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-transparent hover:bg-muted'
+                                        }`}
+                                >
+                                    <Grid className="w-3.5 h-3.5" />
+                                    Simple
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -236,6 +265,7 @@ function ViewBoardPage() {
                                 className="w-full h-full"
                                 useInGameBackground={useInGameBackground}
                                 useSeparateDps={useSeparateDps}
+                                highlightRole={highlightRole || undefined}
                             />
                         </div>
                     </CardContent>

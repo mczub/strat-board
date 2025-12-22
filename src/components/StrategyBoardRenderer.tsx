@@ -15,6 +15,7 @@ interface StrategyBoardRendererProps {
     className?: string
     useInGameBackground?: boolean
     useSeparateDps?: boolean
+    highlightRole?: string // Role to highlight: 'MT', 'OT', 'H1', 'H2', 'D1'/'M1', etc.
 }
 
 // DPS marker remapping: Unified (dps_1-4) vs Separate (melee_1-2, ranged_dps_1-2)
@@ -23,6 +24,30 @@ const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
     'dps_2': 'melee_2',
     'dps_3': 'ranged_dps_1',
     'dps_4': 'ranged_dps_2',
+}
+
+// Role to icon type mapping - Unified mode
+const UNIFIED_ROLE_TO_TYPES: Record<string, string[]> = {
+    'MT': ['tank_1'],
+    'ST': ['tank_2'],
+    'H1': ['healer_1'],
+    'H2': ['healer_2'],
+    'D1': ['dps_1'],
+    'D2': ['dps_2'],
+    'D3': ['dps_3'],
+    'D4': ['dps_4'],
+}
+
+// Role to icon type mapping - Separate mode
+const SEPARATE_ROLE_TO_TYPES: Record<string, string[]> = {
+    'MT': ['tank_1'],
+    'OT': ['tank_2'],
+    'H1': ['healer_1'],
+    'H2': ['healer_2'],
+    'M1': ['melee_1'],
+    'M2': ['melee_2'],
+    'R1': ['ranged_dps_1'],
+    'R2': ['ranged_dps_2'],
 }
 
 // Board dimensions (from FORMAT.md)
@@ -53,8 +78,8 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
 
     // Role/job icons
     tank: 28, tank_1: 28, tank_2: 28,
-    healer: 28, healer_1: 28, healer_2: 28,
-    dps: 28, dps_1: 28, dps_2: 28, dps_3: 28, dps_4: 28,
+    healer: 28, healer_1: 32, healer_2: 32,
+    dps: 28, dps_1: 32, dps_2: 32, dps_3: 32, dps_4: 32,
     melee_dps: 28, ranged_dps: 28, physical_ranged_dps: 28, magical_ranged_dps: 28,
     pure_healer: 28, barrier_healer: 28,
 
@@ -73,7 +98,7 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     tankbuster: 72, tower: 64, targeting: 72,
     radial_knockback: 72, linear_knockback: 270,
     moving_circle_aoe: 64,
-    '1person_aoe': 48, '2person_aoe': 48, '3person_aoe': 48, '4person_aoe': 48,
+    '1person_aoe': 64, '2person_aoe': 64, '3person_aoe': 64, '4person_aoe': 64,
 
     // Shapes
     shape_circle: 48, shape_x: 48, shape_triangle: 48, shape_square: 48,
@@ -677,6 +702,7 @@ export function StrategyBoardRenderer({
     className = '',
     useInGameBackground = false,
     useSeparateDps = false,
+    highlightRole,
 }: StrategyBoardRendererProps) {
     const viewBox = `0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`
 
@@ -694,6 +720,35 @@ export function StrategyBoardRenderer({
         type: remapType(obj.type)
     }))
 
+    // Get highlight types based on role and DPS mode
+    const getHighlightTypes = (): string[] => {
+        if (!highlightRole) return []
+        const mapping = useSeparateDps ? SEPARATE_ROLE_TO_TYPES : UNIFIED_ROLE_TO_TYPES
+        return mapping[highlightRole] || []
+    }
+
+    const highlightTypes = getHighlightTypes()
+
+    // Render highlight circle for an object
+    const renderHighlight = (obj: { type: string; x: number; y: number }, index: number): JSX.Element | null => {
+        if (!highlightTypes.includes(obj.type)) return null
+        const size = getScaledSize(obj as StrategyObject)
+        const radius = size / 2 + 4 // Slightly larger than the icon
+
+        return (
+            <circle
+                key={`highlight-${index}`}
+                cx={obj.x}
+                cy={obj.y}
+                r={radius}
+                fill="none"
+                stroke="white"
+                strokeWidth={3}
+                strokeOpacity={0.9}
+            />
+        )
+    }
+
     return (
         <svg
             viewBox={viewBox}
@@ -704,6 +759,8 @@ export function StrategyBoardRenderer({
         >
             {renderBackground(board.boardBackground, useInGameBackground)}
             {remappedObjects.map((obj, i) => renderObject(obj, i)).reverse()}
+            {/* Render highlights on top */}
+            {remappedObjects.map((obj, i) => renderHighlight(obj, i))}
         </svg>
     )
 }

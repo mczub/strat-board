@@ -51,6 +51,9 @@ function BundleViewPage() {
     const [useSeparateDps, setUseSeparateDps] = useState(false)
     const [highlightIndex, setHighlightIndex] = useState(0) // 0 = None, 1-8 = roles
 
+    // Check if this is a multi-bundle (comma-separated share codes)
+    const isMultiBundle = shareCode.includes(',')
+
     // Highlight options depend on DPS mode (index 0 = None)
     const unifiedRoles = ['None', 'MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4']
     const separateRoles = ['None', 'MT', 'OT', 'H1', 'H2', 'M1', 'M2', 'R1', 'R2']
@@ -62,10 +65,22 @@ function BundleViewPage() {
     useEffect(() => {
         async function loadBundle() {
             try {
-                const result = await getBundle({ data: { shareCode } })
+                // Split share codes if comma-separated (multi-bundle)
+                const shareCodes = shareCode.split(',').map(s => s.trim()).filter(s => s).slice(0, 10)
+
+                // Fetch all bundles in parallel
+                const bundleResults = await Promise.all(
+                    shareCodes.map(code => getBundle({ data: { shareCode: code } }))
+                )
+
+                // Combine all codes from all bundles
+                const allCodes: string[] = []
+                for (const result of bundleResults) {
+                    allCodes.push(...result.codes)
+                }
 
                 // Decode each code
-                const decoded = result.codes.map((code: string) => {
+                const decoded = allCodes.map((code: string) => {
                     try {
                         const fullCode = makeFullCode(code)
                         const board = decode(fullCode)
@@ -135,6 +150,7 @@ function BundleViewPage() {
     }
 
     const validBoards = boards.filter(b => b.board !== null)
+    const numBundles = shareCode.split(',').length
 
     return (
         <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4 overflow-x-hidden">
@@ -149,19 +165,26 @@ function BundleViewPage() {
                             </Button>
                         </Link>
                         <div className="grow">
-                            <h1 className="flex flex-row items-center gap-2 text-xl font-semibold"><Package className="w-6 h-6 text-primary" />bundle</h1>
+                            <h1 className="flex flex-row items-center gap-2 text-xl font-semibold">
+                                <Package className="w-6 h-6 text-primary" />
+                                {isMultiBundle ? 'multi-bundle' : 'bundle'}
+                            </h1>
                             <p className="text-sm text-muted-foreground">
                                 {validBoards.length} board{validBoards.length === 1 ? '' : 's'}
+                                {isMultiBundle && ` from ${shareCode.split(',').length} bundles`}
+                                {numBundles > 10 && ` (limited to 10)`}
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleCopyToNew}>
-                            <PenLine className="w-4 h-4 mr-2" />
-                            <span className="hidden md:inline">Copy to New</span>
-                            <span className="md:hidden">Copy</span>
-                        </Button>
+                        {!isMultiBundle && (
+                            <Button variant="outline" size="sm" onClick={handleCopyToNew}>
+                                <PenLine className="w-4 h-4 mr-2" />
+                                <span className="hidden md:inline">Copy to New</span>
+                                <span className="md:hidden">Copy</span>
+                            </Button>
+                        )}
                         <Button variant="outline" size="sm" onClick={handleCopyUrl}>
                             {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
                             Share

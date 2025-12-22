@@ -80,7 +80,7 @@ const OVERLAY_TYPES = new Set([
 // AoE colors (defaults)
 const AOE_COLOR = 'rgba(255, 123, 0, 0.4)'
 const AOE_BORDER = 'rgba(255, 123, 0, 0.8)'
-const DEFAULT_AOE_COLOR = '#ff7b00'
+const DEFAULT_AOE_COLOR = '#FFA131'
 
 // Get color for an object (matching StrategyBoardRenderer logic)
 function getObjectColor(obj: StrategyObject): string {

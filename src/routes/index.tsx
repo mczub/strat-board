@@ -4,7 +4,7 @@
 
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { ArrowRight, Grid3X3, Sparkles, AlertCircle } from 'lucide-react'
+import { ArrowRight, Grid3X3, Sparkles, AlertCircle, Package, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -70,9 +70,10 @@ function HomePage() {
               board<span className="text-primary text-xl">.wtfdig.info</span>
             </h1>
           </div>
-          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Decode and view FF14 Strategy Board share codes. Paste your code below to see it in your browser.
-          </p>
+          <div className="text-base text-muted-foreground mb-8 max-w-xl mx-auto">
+            <p>view FF14 strategy board share codes</p>
+            <p>paste your code below to see it in your browser</p>
+          </div>
 
           {/* Code Input Form */}
           <form onSubmit={handleSubmit} className="max-w-xl mx-auto">
@@ -102,11 +103,11 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="py-12 px-6 max-w-4xl mx-auto border-t border-border">
+      <section className="py-6 px-6 max-w-4xl mx-auto border-t border-border">
         <Link to="/b">
           <Card className="bg-card/30 border-primary/30 hover:border-primary/50 transition-colors cursor-pointer">
             <CardHeader className="text-center">
-              <CardTitle className="text-primary">bundler</CardTitle>
+              <CardTitle className="text-xl flex justify-center items-center gap-2"><Package className="w-6 h-6 text-primary" />bundle</CardTitle>
               <CardDescription>
                 share a collection of boards with one link
               </CardDescription>
@@ -116,14 +117,14 @@ function HomePage() {
       </section>
 
       {/* Create Placeholder */}
-      <section className="py-12 px-6 max-w-4xl mx-auto border-t border-border">
+      <section className="py-6 px-6 max-w-4xl mx-auto border-t border-border">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          Coming Soon
+          coming soon
         </h2>
         <Card className="bg-card/30 border-dashed mb-4">
           <CardHeader className="text-center">
-            <CardTitle className="text-muted-foreground">editor</CardTitle>
+            <CardTitle className="text-muted-foreground text-xl flex justify-center items-center gap-2"><Pencil className="w-6 h-6 text-muted-primary" />editor</CardTitle>
             <CardDescription>
               create and edit strategy boards
             </CardDescription>

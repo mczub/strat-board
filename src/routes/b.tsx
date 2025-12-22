@@ -14,7 +14,7 @@ import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Plus, Link as LinkIcon, Trash2, Loader2, Check, Copy } from 'lucide-react'
+import { ArrowLeft, Plus, Link as LinkIcon, Trash2, Loader2, Check, Copy, Package } from 'lucide-react'
 import { makeFullCode, extractCode } from '@/lib/bundleUtils'
 import { createBundle } from './api.bundles'
 
@@ -175,9 +175,9 @@ function BundleEditorPage() {
                             </Button>
                         </Link>
                         <div className="grow">
-                            <h1 className="text-xl font-semibold">Bundle Editor</h1>
+                            <h1 className="flex flex-row items-center gap-2 text-xl font-semibold"><Package className="w-6 h-6 text-primary" />bundle editor</h1>
                             <p className="text-sm text-muted-foreground">
-                                Up to {MAX_CODES} boards • {validCount} valid
+                                {validCount}/{MAX_CODES} boards
                             </p>
                         </div>
                     </div>

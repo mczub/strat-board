@@ -106,7 +106,7 @@ function getObjectColor(obj: StrategyObject): string {
     if (obj.colorR !== undefined && obj.colorG !== undefined && obj.colorB !== undefined) {
         return `rgb(${obj.colorR}, ${obj.colorG}, ${obj.colorB})`
     }
-    return '#ff7b00' // Default orange for AoEs
+    return '#FFA131' // Default orange for AoEs
 }
 
 // Render image-based object
@@ -216,21 +216,47 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
     if (opacity === 0) return null
 
-    // Circle AoE
+    // Circle AoE - uses radial gradient for soft center fading to defined edge
     if (type === 'circle_aoe') {
         const radius = 248 * scale
+        const gradientId = `circle-aoe-gradient-${index}`
+        // Use the object's color or default orange
+        const aoeColor = '#FFA131'
+        const aoeOutsideColor = "#FEE874"
+        const edgeColor = '#FFDDD9'
         return (
-            <circle
-                key={index}
-                cx={x}
-                cy={y}
-                r={radius}
-                fill={color}
-                fillOpacity={opacity * 0.3}
-                stroke={color}
-                strokeWidth={2}
-                strokeOpacity={opacity}
-            />
+            <g key={index} opacity={opacity}>
+                <defs>
+                    <radialGradient id={gradientId} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                        <stop offset="0%" stopColor={aoeColor} stopOpacity="0.1" />
+                        <stop offset="70%" stopColor={aoeColor} stopOpacity="0.3" />
+                        <stop offset="95%" stopColor={aoeColor} stopOpacity="0.7" />
+                        <stop offset="100%" stopColor={aoeOutsideColor} stopOpacity="1" />
+                    </radialGradient>
+                    <filter id={`${gradientId}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <circle
+                    cx={x}
+                    cy={y}
+                    r={radius}
+                    fill={`url(#${gradientId})`}
+                    filter={`url(#${gradientId}-glow)`}
+                />
+                <circle
+                    cx={x}
+                    cy={y}
+                    r={radius}
+                    fill="none"
+                    stroke={edgeColor}
+                    strokeWidth={2}
+                />
+            </g>
         )
     }
 
@@ -262,13 +288,19 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
             return transforms.length > 0 ? transforms.join(' ') : undefined
         }
 
-        // Full circle donut - simple rendering
+        // Full circle donut - use mask for transparent center
         if (arcAngle >= 360) {
             const transform = buildTransform(x, y)
+            const maskId = `donut-mask-${index}`
             return (
                 <g key={index} opacity={opacity} transform={transform}>
-                    <circle cx={x} cy={y} r={outerRadius} fill={color} fillOpacity={0.3} />
-                    <circle cx={x} cy={y} r={innerRadius} fill="var(--card)" />
+                    <defs>
+                        <mask id={maskId}>
+                            <circle cx={x} cy={y} r={outerRadius} fill="white" />
+                            <circle cx={x} cy={y} r={innerRadius} fill="black" />
+                        </mask>
+                    </defs>
+                    <circle cx={x} cy={y} r={outerRadius} fill={color} mask={`url(#${maskId})`} />
                     <circle cx={x} cy={y} r={outerRadius} fill="none" stroke={color} strokeWidth={2} />
                     <circle cx={x} cy={y} r={innerRadius} fill="none" stroke={color} strokeWidth={2} />
                 </g>
@@ -420,7 +452,17 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
         const largeArc = arcAngle > 180 ? 1 : 0
 
-        const d = `M ${tipX} ${tipY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`
+        // Full cone path for fill
+        const fillPath = `M ${tipX} ${tipY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`
+        // Arc-only path for stroke (outer edge only)
+        const strokePath = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`
+
+        // Gradient and effect IDs
+        const gradientId = `fan-aoe-gradient-${index}`
+        // Same colors as circle_aoe
+        const aoeColor = '#FFA131'
+        const aoeOutsideColor = '#FEE874'
+        const edgeColor = '#FFDDD9'
 
         // Build transform for rotation and flips
         // All transforms are applied around the input x,y point (bounding box center)
@@ -438,16 +480,34 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const transform = transforms.length > 0 ? transforms.join(' ') : undefined
 
         return (
-            <path
-                key={index}
-                d={d}
-                fill={color}
-                fillOpacity={opacity * 0.4}
-                stroke={color}
-                strokeWidth={2}
-                strokeOpacity={opacity}
-                transform={transform}
-            />
+            <g key={index} opacity={opacity} transform={transform}>
+                <defs>
+                    <radialGradient id={gradientId} cx={tipX} cy={tipY} r={radius} gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stopColor={aoeColor} stopOpacity="0.1" />
+                        <stop offset="70%" stopColor={aoeColor} stopOpacity="0.3" />
+                        <stop offset="95%" stopColor={aoeColor} stopOpacity="0.7" />
+                        <stop offset="100%" stopColor={aoeOutsideColor} stopOpacity="1" />
+                    </radialGradient>
+                    <filter id={`${gradientId}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <path
+                    d={fillPath}
+                    fill={`url(#${gradientId})`}
+                    filter={`url(#${gradientId}-glow)`}
+                />
+                <path
+                    d={strokePath}
+                    fill="none"
+                    stroke={edgeColor}
+                    strokeWidth={2}
+                />
+            </g>
         )
     }
 
@@ -503,6 +563,9 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill={color}
+                stroke="black"
+                strokeWidth={1}
+                paintOrder="stroke fill"
                 fontSize={size}
                 opacity={opacity}
             >

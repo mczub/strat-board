@@ -12,7 +12,7 @@ import type { StrategyBoard } from 'xiv-strat-board'
 import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Check, ExternalLink, AlertTriangle, Loader2, PenLine } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, AlertTriangle, Loader2, PenLine, Package, Copy } from 'lucide-react'
 import { makeFullCode } from '@/lib/bundleUtils'
 import { getBundle } from './api.bundles'
 
@@ -47,6 +47,7 @@ function BundleViewPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [urlCopied, setUrlCopied] = useState(false)
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
     useEffect(() => {
         async function loadBundle() {
@@ -138,9 +139,9 @@ function BundleViewPage() {
                             </Button>
                         </Link>
                         <div className="grow">
-                            <h1 className="text-xl font-semibold">Strategy Board Bundle</h1>
+                            <h1 className="flex flex-row items-center gap-2 text-xl font-semibold"><Package className="w-6 h-6 text-primary" />bundle</h1>
                             <p className="text-sm text-muted-foreground">
-                                {validBoards.length} boards
+                                {validBoards.length} board{validBoards.length === 1 ? '' : 's'}
                             </p>
                         </div>
                     </div>
@@ -172,13 +173,26 @@ function BundleViewPage() {
                                             </span>
                                         )}
                                     </CardTitle>
-                                    <Link
-                                        to="/$code"
-                                        params={{ code: encodeURIComponent(item.code) }}
-                                        className="text-sm text-primary hover:underline"
-                                    >
-                                        View Full
-                                    </Link>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2"
+                                            onClick={async () => {
+                                                await navigator.clipboard.writeText(`[${item.code}]`)
+                                                setCopiedIndex(index)
+                                                setTimeout(() => setCopiedIndex(null), 2000)
+                                            }}
+                                        >
+                                            {copiedIndex === index ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                                            Copy
+                                        </Button>
+                                        <Link to="/$code" params={{ code: encodeURIComponent(item.code) }}>
+                                            <Button variant="ghost" size="sm" className="h-7 px-2">
+                                                View
+                                            </Button>
+                                        </Link>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">

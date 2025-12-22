@@ -17,14 +17,19 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'FF14 Strategy Board Viewer',
+        title: 'board.wtfdig.info - view + bundle ff14 strategy board codes',
       },
       {
         name: 'description',
-        content: 'View and share FF14 Strategy Board codes. Decode share codes and render interactive strategy diagrams.',
+        content: 'View, bundle, and share FF14 strategy board codes.',
       },
     ],
     links: [
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/favicon.svg',
+      },
       {
         rel: 'stylesheet',
         href: appCss,

@@ -51,7 +51,7 @@ export const Route = createFileRoute('/$code')({
 
         return {
             meta: [
-                { title: `${title} | FF14 Strategy Board` },
+                { title: `${title} | board.wtfdig.info` },
                 { name: 'description', content: description },
                 // OpenGraph tags
                 { property: 'og:title', content: title },

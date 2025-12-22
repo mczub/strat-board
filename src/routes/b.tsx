@@ -22,7 +22,7 @@ export const Route = createFileRoute('/b')({
     component: BundleLayout,
     head: () => ({
         meta: [
-            { title: 'Bundle Editor | FF14 Strategy Board' },
+            { title: 'bundle editor | board.wtfdig.info' },
             { name: 'description', content: 'Create a bundle of FF14 strategy boards to share' },
         ],
     }),

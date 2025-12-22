@@ -9,7 +9,7 @@ import type { StrategyBoard } from 'xiv-strat-board'
 import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink, Image, Grid } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink, Image, Grid, Users, Split } from 'lucide-react'
 import { useState } from 'react'
 
 // Base URL for OG images (absolute URLs required by social platforms)
@@ -75,6 +75,7 @@ function ViewBoardPage() {
     const [copied, setCopied] = useState(false)
     const [urlCopied, setUrlCopied] = useState(false)
     const [useInGameBackground, setUseInGameBackground] = useState(true)
+    const [useSeparateDps, setUseSeparateDps] = useState(false)
 
     // Decode the URL-encoded code
     const decodedCode = decodeURIComponent(code)
@@ -175,27 +176,54 @@ function ViewBoardPage() {
                 </div>
 
                 <div className="flex items-center justify-end mb-4 flex-col md:flex-row gap-4">
-                    <div className="flex items-center rounded-md border border-border overflow-hidden mt-2">
-                        <button
-                            onClick={() => setUseInGameBackground(true)}
-                            className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-transparent hover:bg-muted'
-                                }`}
-                        >
-                            <Image className="w-3.5 h-3.5" />
-                            In-Game
-                        </button>
-                        <button
-                            onClick={() => setUseInGameBackground(false)}
-                            className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-transparent hover:bg-muted'
-                                }`}
-                        >
-                            <Grid className="w-3.5 h-3.5" />
-                            Simple
-                        </button>
+                    <div className="flex items-center gap-2">
+                        {/* DPS Marker Toggle */}
+                        <div className="flex items-center rounded-md border border-border overflow-hidden">
+                            <button
+                                onClick={() => setUseSeparateDps(false)}
+                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-transparent hover:bg-muted'
+                                    }`}
+                            >
+                                <Users className="w-3.5 h-3.5" />
+                                Unified
+                            </button>
+                            <button
+                                onClick={() => setUseSeparateDps(true)}
+                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-transparent hover:bg-muted'
+                                    }`}
+                            >
+                                <Split className="w-3.5 h-3.5" />
+                                Separate
+                            </button>
+                        </div>
+
+                        {/* Background Toggle */}
+                        <div className="flex items-center rounded-md border border-border overflow-hidden">
+                            <button
+                                onClick={() => setUseInGameBackground(true)}
+                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-transparent hover:bg-muted'
+                                    }`}
+                            >
+                                <Image className="w-3.5 h-3.5" />
+                                In-Game
+                            </button>
+                            <button
+                                onClick={() => setUseInGameBackground(false)}
+                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-transparent hover:bg-muted'
+                                    }`}
+                            >
+                                <Grid className="w-3.5 h-3.5" />
+                                Simple
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -207,6 +235,7 @@ function ViewBoardPage() {
                                 board={board}
                                 className="w-full h-full"
                                 useInGameBackground={useInGameBackground}
+                                useSeparateDps={useSeparateDps}
                             />
                         </div>
                     </CardContent>

@@ -14,6 +14,15 @@ interface StrategyBoardRendererProps {
     height?: number
     className?: string
     useInGameBackground?: boolean
+    useSeparateDps?: boolean
+}
+
+// DPS marker remapping: Unified (dps_1-4) vs Separate (melee_1-2, ranged_dps_1-2)
+const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
+    'dps_1': 'melee_1',
+    'dps_2': 'melee_2',
+    'dps_3': 'ranged_dps_1',
+    'dps_4': 'ranged_dps_2',
 }
 
 // Board dimensions (from FORMAT.md)
@@ -667,8 +676,23 @@ export function StrategyBoardRenderer({
     height = 384,
     className = '',
     useInGameBackground = false,
+    useSeparateDps = false,
 }: StrategyBoardRendererProps) {
     const viewBox = `0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`
+
+    // Remap object types if using separate DPS markers
+    const remapType = (type: string): string => {
+        if (useSeparateDps && DPS_UNIFIED_TO_SEPARATE[type]) {
+            return DPS_UNIFIED_TO_SEPARATE[type]
+        }
+        return type
+    }
+
+    // Create remapped objects
+    const remappedObjects = board.objects.map(obj => ({
+        ...obj,
+        type: remapType(obj.type)
+    }))
 
     return (
         <svg
@@ -679,7 +703,7 @@ export function StrategyBoardRenderer({
             style={{ maxWidth: '100%', height: 'auto' }}
         >
             {renderBackground(board.boardBackground, useInGameBackground)}
-            {board.objects.map((obj, i) => renderObject(obj, i)).reverse()}
+            {remappedObjects.map((obj, i) => renderObject(obj, i)).reverse()}
         </svg>
     )
 }

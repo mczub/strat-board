@@ -12,7 +12,7 @@ import type { StrategyBoard } from 'xiv-strat-board'
 import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Check, ExternalLink, AlertTriangle, Loader2, PenLine, Package, Copy } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, AlertTriangle, Loader2, PenLine, Package, Copy, Users, Split } from 'lucide-react'
 import { makeFullCode } from '@/lib/bundleUtils'
 import { getBundle } from './api.bundles'
 
@@ -48,6 +48,7 @@ function BundleViewPage() {
     const [error, setError] = useState<string | null>(null)
     const [urlCopied, setUrlCopied] = useState(false)
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
+    const [useSeparateDps, setUseSeparateDps] = useState(false)
 
     useEffect(() => {
         async function loadBundle() {
@@ -159,6 +160,32 @@ function BundleViewPage() {
                     </div>
                 </div>
 
+                {/* Toggle Controls */}
+                <div className="flex items-center justify-end mb-4">
+                    <div className="flex items-center rounded-md border border-border overflow-hidden">
+                        <button
+                            onClick={() => setUseSeparateDps(false)}
+                            className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-transparent hover:bg-muted'
+                                }`}
+                        >
+                            <Users className="w-3.5 h-3.5" />
+                            Unified
+                        </button>
+                        <button
+                            onClick={() => setUseSeparateDps(true)}
+                            className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-transparent hover:bg-muted'
+                                }`}
+                        >
+                            <Split className="w-3.5 h-3.5" />
+                            Separate
+                        </button>
+                    </div>
+                </div>
+
                 {/* Boards Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full overflow-hidden">
                     {boards.map((item, index) => (
@@ -202,6 +229,7 @@ function BundleViewPage() {
                                             board={item.board}
                                             className="w-full h-full"
                                             useInGameBackground={true}
+                                            useSeparateDps={useSeparateDps}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-muted/30">

@@ -13,6 +13,7 @@ import { ImageResponse } from 'workers-og'
 import { decode } from 'xiv-strat-board'
 import { getIconDataUrl } from '@/lib/iconData'
 import type { StrategyObject } from 'xiv-strat-board'
+import { makeFullCode } from '@/lib/bundleUtils'
 
 // Default icon sizes (matching StrategyBoardRenderer)
 const ICON_SIZE_DEFAULTS: Record<string, number> = {
@@ -121,7 +122,7 @@ export const Route = createFileRoute('/api/og')({
         }
 
         try {
-          const fullCode = code.startsWith('stgy:') ? `[${code}]` : code
+          const fullCode = makeFullCode(code)
           const board = decode(fullCode)
 
           // Image dimensions

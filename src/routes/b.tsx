@@ -163,21 +163,21 @@ function BundleEditorPage() {
     const hasInvalidCodes = slots.some(s => s.code.trim() && s.error !== null)
 
     return (
-        <div className="min-h-[calc(100vh-3.5rem)] py-8 px-6">
+        <div className="md:max-h-[calc(100vh-3.5rem)] py-4 px-4">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between mb-4 flex-col md:flex-row gap-4">
+                    <div className="flex items-center gap-4 justify-between w-full">
                         <Link to="/">
                             <Button variant="ghost" size="sm">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back
+                                <span className="hidden md:inline">Back</span>
                             </Button>
                         </Link>
-                        <div>
+                        <div className="grow">
                             <h1 className="text-xl font-semibold">Bundle Editor</h1>
                             <p className="text-sm text-muted-foreground">
-                                Add up to {MAX_CODES} strategy boards • {validCount} valid
+                                Up to {MAX_CODES} boards • {validCount} valid
                             </p>
                         </div>
                     </div>
@@ -185,12 +185,12 @@ function BundleEditorPage() {
                     <div className="flex items-center gap-2">
                         {generatedUrl ? (
                             <>
-                                <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[300px] truncate">
+                                <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[200px] md:max-w-[300px] truncate">
                                     {generatedUrl}
                                 </code>
                                 <Button variant="outline" size="sm" onClick={handleCopyUrl}>
                                     {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                                    Copy URL
+                                    Copy
                                 </Button>
                             </>
                         ) : (

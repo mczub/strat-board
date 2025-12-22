@@ -126,18 +126,18 @@ function BundleViewPage() {
     const validBoards = boards.filter(b => b.board !== null)
 
     return (
-        <div className="min-h-[calc(100vh-3.5rem)] py-8 px-6">
-            <div className="max-w-6xl mx-auto">
+        <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4 overflow-x-hidden">
+            <div className="max-w-6xl mx-auto w-full">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between mb-4 flex-col md:flex-row gap-4">
+                    <div className="flex items-center gap-4 justify-between w-full">
                         <Link to="/">
                             <Button variant="ghost" size="sm">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back
+                                <span className="hidden md:inline">Back</span>
                             </Button>
                         </Link>
-                        <div>
+                        <div className="grow">
                             <h1 className="text-xl font-semibold">Strategy Board Bundle</h1>
                             <p className="text-sm text-muted-foreground">
                                 {validBoards.length} boards
@@ -148,17 +148,18 @@ function BundleViewPage() {
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={handleCopyToNew}>
                             <PenLine className="w-4 h-4 mr-2" />
-                            Copy to New Bundle
+                            <span className="hidden md:inline">Copy to New</span>
+                            <span className="md:hidden">Copy</span>
                         </Button>
                         <Button variant="outline" size="sm" onClick={handleCopyUrl}>
                             {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-                            Share URL
+                            Share
                         </Button>
                     </div>
                 </div>
 
                 {/* Boards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full overflow-hidden">
                     {boards.map((item, index) => (
                         <Card key={index} className="bg-card/50 border-border overflow-hidden">
                             <CardHeader className="pb-2">
@@ -174,7 +175,7 @@ function BundleViewPage() {
                                     <Link
                                         to="/$code"
                                         params={{ code: encodeURIComponent(item.code) }}
-                                        className="text-xs text-primary hover:underline"
+                                        className="text-sm text-primary hover:underline"
                                     >
                                         View Full
                                     </Link>

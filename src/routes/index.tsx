@@ -59,7 +59,7 @@ function HomePage() {
   }
 
   return (
-    <div className="max-h-[calc(100vh-3.5rem)]">
+    <div className="md:max-h-[calc(100vh-3.5rem)]">
       {/* Hero Section */}
       <section className="relative py-16 px-6 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/5" />

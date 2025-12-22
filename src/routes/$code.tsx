@@ -139,58 +139,63 @@ function ViewBoardPage() {
     }
 
     return (
-        <div className="min-h-[calc(100vh-3.5rem)] py-8 px-6">
+        <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between mb-2 flex-col md:flex-row gap-4">
+                    <div className="flex items-center gap-4 justify-between w-full">
                         <Link to="/">
                             <Button variant="ghost" size="sm">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back
+                                <span className="hidden md:inline">Back</span>
                             </Button>
                         </Link>
-                        <div>
+                        <div className="grow">
                             <h1 className="text-xl font-semibold">
                                 {board.name || 'Strategy Board'}
                             </h1>
                             <p className="text-sm text-muted-foreground">
-                                {board.objects.length} objects • {board.boardBackground || 'no background'}
+                                {board.objects.length} objects
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-md border border-border overflow-hidden">
-                            <button
-                                onClick={() => setUseInGameBackground(true)}
-                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                <Image className="w-3.5 h-3.5" />
-                                In-Game
-                            </button>
-                            <button
-                                onClick={() => setUseInGameBackground(false)}
-                                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-transparent hover:bg-muted'
-                                    }`}
-                            >
-                                <Grid className="w-3.5 h-3.5" />
-                                Simple
-                            </button>
+                        <div className="flex flex-row items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={handleCopy}>
+                                {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                                Copy Code
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleCopyUrl}>
+                                {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
+                                Share URL
+                            </Button>
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleCopy}>
-                            {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                            Copy Code
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleCopyUrl}>
-                            {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-                            Share URL
-                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-end mb-4 flex-col md:flex-row gap-4">
+                    <div className="flex items-center rounded-md border border-border overflow-hidden mt-2">
+                        <button
+                            onClick={() => setUseInGameBackground(true)}
+                            className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-transparent hover:bg-muted'
+                                }`}
+                        >
+                            <Image className="w-3.5 h-3.5" />
+                            In-Game
+                        </button>
+                        <button
+                            onClick={() => setUseInGameBackground(false)}
+                            className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-transparent hover:bg-muted'
+                                }`}
+                        >
+                            <Grid className="w-3.5 h-3.5" />
+                            Simple
+                        </button>
                     </div>
                 </div>
 

@@ -299,7 +299,6 @@ function convertNode(
     node: RaidplanNode,
     transform: ReturnType<typeof getArenaTransform>
 ): StrategyObject[] {
-    console.log('node', node)
     const { x, y } = transformCoordinates(node.meta.pos.x, node.meta.pos.y, transform)
     const angle = normalizeAngle(node.meta.angle)
 
@@ -311,8 +310,6 @@ function convertNode(
     // Text (itext) - split on newlines
     if (node.type === 'itext') {
         if (!node.attr.text?.trim()) return []
-
-        console.log(node.attr.text)
 
         const rgb = node.attr.fill ? hexToRgb(node.attr.fill) : null
         const fontSize = node.attr.fontSize ?? 32
@@ -561,7 +558,6 @@ export function convertRaidplanToBoards(data: RaidplanData): StrategyBoard[] {
             objects: limitedObjects.reverse(),
         })
     }
-    console.log(boards);
     return boards
 
 }

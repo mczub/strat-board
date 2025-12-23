@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ImportRouteImport } from './routes/import'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as BRouteImport } from './routes/b'
 import { Route as CodeRouteImport } from './routes/$code'
@@ -17,6 +18,11 @@ import { Route as CCodeRouteImport } from './routes/c/$code'
 import { Route as BShareCodeRouteImport } from './routes/b.$shareCode'
 import { Route as ApiOgRouteImport } from './routes/api.og'
 
+const ImportRoute = ImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/$code': typeof CodeRoute
   '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
+  '/import': typeof ImportRoute
   '/api/og': typeof ApiOgRoute
   '/b/$shareCode': typeof BShareCodeRoute
   '/c/$code': typeof CCodeRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/$code': typeof CodeRoute
   '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
+  '/import': typeof ImportRoute
   '/api/og': typeof ApiOgRoute
   '/b/$shareCode': typeof BShareCodeRoute
   '/c/$code': typeof CCodeRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/$code': typeof CodeRoute
   '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
+  '/import': typeof ImportRoute
   '/api/og': typeof ApiOgRoute
   '/b/$shareCode': typeof BShareCodeRoute
   '/c/$code': typeof CCodeRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/$code'
     | '/b'
     | '/create'
+    | '/import'
     | '/api/og'
     | '/b/$shareCode'
     | '/c/$code'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/$code'
     | '/b'
     | '/create'
+    | '/import'
     | '/api/og'
     | '/b/$shareCode'
     | '/c/$code'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/$code'
     | '/b'
     | '/create'
+    | '/import'
     | '/api/og'
     | '/b/$shareCode'
     | '/c/$code'
@@ -116,12 +128,20 @@ export interface RootRouteChildren {
   CodeRoute: typeof CodeRoute
   BRoute: typeof BRouteWithChildren
   CreateRoute: typeof CreateRoute
+  ImportRoute: typeof ImportRoute
   ApiOgRoute: typeof ApiOgRoute
   CCodeRoute: typeof CCodeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/import': {
+      id: '/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof ImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/create': {
       id: '/create'
       path: '/create'
@@ -189,6 +209,7 @@ const rootRouteChildren: RootRouteChildren = {
   CodeRoute: CodeRoute,
   BRoute: BRouteWithChildren,
   CreateRoute: CreateRoute,
+  ImportRoute: ImportRoute,
   ApiOgRoute: ApiOgRoute,
   CCodeRoute: CCodeRoute,
 }

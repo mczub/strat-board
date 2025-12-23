@@ -4,7 +4,7 @@
 
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { ArrowRight, Grid3X3, Sparkles, AlertCircle, Package, Pencil } from 'lucide-react'
+import { ArrowRight, Grid3X3, Sparkles, AlertCircle, Package, Pencil, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -104,17 +104,30 @@ function HomePage() {
       </section>
 
       <section className="py-6 px-6 max-w-4xl mx-auto border-t border-border">
-        <Link to="/b">
-          <Card className="bg-card/30 border-primary/30 hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="text-center">
-              <CardTitle className="text-xl flex justify-center items-center gap-2"><Package className="w-6 h-6 text-primary" />bundle</CardTitle>
-              <CardDescription>
-                share a collection of boards with one link
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link to="/b">
+            <Card className="bg-card/30 border-primary/30 hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="text-center">
+                <CardTitle className="text-xl flex justify-center items-center gap-2"><Package className="w-6 h-6 text-primary" />bundle</CardTitle>
+                <CardDescription>
+                  share a collection of boards with one link
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link to="/import">
+            <Card className="bg-card/30 border-primary/30 hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="text-center">
+                <CardTitle className="text-xl flex justify-center items-center gap-2"><Download className="w-6 h-6 text-primary" />import</CardTitle>
+                <CardDescription>
+                  convert raidplan.io plans to share codes
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        </div>
       </section>
+
 
       {/* Create Placeholder */}
       <section className="py-6 px-6 max-w-4xl mx-auto border-t border-border">

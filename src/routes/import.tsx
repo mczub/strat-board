@@ -192,7 +192,7 @@ function ImportPage() {
                 <Card className="bg-card/50 border-border mb-6">
                     <CardContent>
                         <div className="flex flex-col text-base gap-2">
-                            <p className="flex flex-row items-center "><Info className="w-4 h-4 mr-2" /><span>Strategy boards are fairly limited, so some Raidplan features will be lost or placed incorrectly in the conversion.</span></p>
+                            <p className="flex flex-row items-center "><Info className="w-4 h-4 mr-2" /><span>Strategy boards are limited, so some Raidplan features will be lost or placed incorrectly in the conversion.</span></p>
                             <p className="flex flex-row items-center "><span>Make sure to double-check the generated boards in-game for accuracy.</span></p>
                             <ol className="text-muted-foreground list-disc list-inside text-sm">
                                 <li>Objects outside the strategy board's aspect ratio will be cropped.</li>
@@ -201,6 +201,7 @@ function ImportPage() {
                                 <li>The only objects that can have non-default colors are lines and line AOEs.</li>
                                 <li>Images, emoji, hand-drawn lines, and other status effects are not supported.</li>
                                 <li>Objects may be placed incorrectly or render in an incorrect order.</li>
+                                <li>Generated codes may not be able to be rendered in-game.</li>
                             </ol>
 
                         </div>

@@ -253,7 +253,8 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
     // Circle AoE - uses radial gradient for soft center fading to defined edge
     if (type === 'circle_aoe') {
         const radius = 248 * scale
-        const gradientId = `circle-aoe-gradient-${index}`
+        const uniqueId = `${x}-${y}-${index}`
+        const gradientId = `circle-aoe-gradient-${uniqueId}`
         // Use the object's color or default orange
         const aoeColor = '#FFA131'
         const aoeOutsideColor = "#FEE874"
@@ -325,7 +326,8 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         // Full circle donut - use mask for transparent center
         if (arcAngle >= 360) {
             const transform = buildTransform(x, y)
-            const maskId = `donut-mask-${index}`
+            const uniqueId = `${x}-${y}-${index}`
+            const maskId = `donut-mask-${uniqueId}`
             return (
                 <g key={index} opacity={opacity} transform={transform}>
                     <defs>
@@ -492,7 +494,8 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const strokePath = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`
 
         // Gradient and effect IDs
-        const gradientId = `fan-aoe-gradient-${index}`
+        const uniqueId = `${x}-${y}-${index}`
+        const gradientId = `fan-aoe-gradient-${uniqueId}`
         // Same colors as circle_aoe
         const aoeColor = '#FFA131'
         const aoeOutsideColor = '#FEE874'

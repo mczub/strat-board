@@ -124,6 +124,7 @@ export const Route = createFileRoute('/api/og')({
         try {
           const fullCode = makeFullCode(code)
           const board = decode(fullCode)
+          console.info('fullCode', fullCode)
 
           // Image dimensions
           const width = 1200

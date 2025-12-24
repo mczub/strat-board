@@ -58,12 +58,22 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Header />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border bg-card/30 py-4 px-6">
-          <div className="max-w-5xl mx-auto flex flex-col lg:flex-row justify-between items-left gap-2 text-xs text-muted-foreground">
+          <div className="max-w-5xl mx-auto flex flex-col lg:flex-row justify-between items-left gap-2 text-sm text-muted-foreground">
             <div>
               <p>FINAL FANTASY is a registered trademark of Square Enix Holdings Co., Ltd.</p>
               <p>FINAL FANTASY XIV © SQUARE ENIX</p>
             </div>
-            <div>Made by Mara Kaminagi and S'aize Riya @ Adamantoise</div>
+            <div>
+              <div>Made by Mara Kaminagi and S'aize Riya @ Adamantoise</div>
+              <div>
+                Really love the site? <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="anchor text-primary"
+                  href="https://ko-fi.com/mczub">Support us on Ko-fi!
+                </a>
+              </div>
+            </div>
           </div>
         </footer>
         <TanStackDevtools

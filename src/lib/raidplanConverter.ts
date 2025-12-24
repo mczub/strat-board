@@ -401,40 +401,101 @@ function convertNode(
             if (mappedType.name === 'fan_aoe_wedge') {
                 obj.type = 'donut'
                 obj.donutRadius = 0
-                obj.arcAngle = Math.round(2 * Math.atan(node.meta.scale.x / (2 * node.meta.scale.y)) * 180 / Math.PI)
-                obj.angle = normalizeAngle(180 + node.meta.angle - (obj.arcAngle / 2))
+                const arcAngleRad = 2 * Math.atan(node.meta.scale.x / (2 * node.meta.scale.y))
+                const boardPixelSize = (node.meta.scale.y * 105) * (384 / 675)
+                obj.size = Math.round(boardPixelSize * (50 / 128))
+                obj.arcAngle = Math.round((arcAngleRad * 180 / Math.PI) / 10) * 10
+                const roundArcAngleRad = obj.arcAngle * Math.PI / 180
+                // calculate bounding box
+                let boardBoxWidth, boardBoxHeight
+                if (roundArcAngleRad <= Math.PI / 2) {
+                    boardBoxWidth = boardPixelSize * Math.sin(roundArcAngleRad)
+                    boardBoxHeight = boardPixelSize
+                } else if (roundArcAngleRad <= Math.PI) {
+                    boardBoxWidth = boardPixelSize
+                    boardBoxHeight = boardPixelSize * (1 - Math.cos(roundArcAngleRad))
+                } else if (roundArcAngleRad < Math.PI * 1.5) {
+                    boardBoxWidth = boardPixelSize * (1 + Math.sin(roundArcAngleRad))
+                    boardBoxHeight = boardPixelSize * 2
+                } else {
+                    boardBoxWidth = boardPixelSize * 2
+                    boardBoxHeight = boardPixelSize * 2
+                }
+
+                const boardAngle = normalizeAngle(180 + node.meta.angle - (obj.arcAngle / 2))
+
+                const raidplanCenterX = node.meta.pos.x
+                const raidplanCenterY = node.meta.pos.y
+
+                const raidplanTipLocationX = raidplanCenterX + (node.meta.scale.y * 50) * Math.sin(node.meta.angle * Math.PI / 180)
+                const raidplanTipLocationY = raidplanCenterY - (node.meta.scale.y * 50) * Math.cos(node.meta.angle * Math.PI / 180)
+
+                const raidplanCenterTipOffsetX = raidplanTipLocationX - raidplanCenterX
+                const raidplanCenterTipOffsetY = raidplanTipLocationY - raidplanCenterY
+
+                const boardTipCenterOffsetXUnrotated = boardBoxWidth / 2
+                const boardTipCenterOffsetYUnrotated = ((boardBoxHeight / 2) - boardPixelSize)
+
+                const boardTipCenterOffsetX = boardTipCenterOffsetXUnrotated * Math.cos(boardAngle * Math.PI / 180) - boardTipCenterOffsetYUnrotated * Math.sin(boardAngle * Math.PI / 180)
+                const boardTipCenterOffsetY = boardTipCenterOffsetYUnrotated * Math.cos(boardAngle * Math.PI / 180) + boardTipCenterOffsetXUnrotated * Math.sin(boardAngle * Math.PI / 180)
+
+                obj.x = Math.round(x + (raidplanCenterTipOffsetX * (384 / 675)) + boardTipCenterOffsetX)
+                obj.y = Math.round(y + (raidplanCenterTipOffsetY * (384 / 675)) + boardTipCenterOffsetY)
+
+                obj.angle = boardAngle
                 obj.colorR = undefined
                 obj.colorG = undefined
                 obj.colorB = undefined
-
-                // Offset calculation derived from empirical data:
-                // Raidplan uses clockwise = positive angle
-                const raidplanAngleRad = node.meta.angle * Math.PI / 180
-                const sinAngle = Math.sin(raidplanAngleRad)
-                // 33.32° needs offsetX=-90, offsetY=+18
-                const offsetX = -60 * (1 + sinAngle)
-                const offsetY = 45 * (1 - sinAngle)
-
-                obj.x = Math.round(x + offsetX)
-                obj.y = Math.round(y + offsetY)
             }
 
             if (mappedType.name === 'fan_aoe_pie') {
                 obj.type = 'donut'
                 obj.donutRadius = 0
-                obj.arcAngle = Math.round(2 * Math.asin(node.meta.scale.x / (2 * node.meta.scale.y)) * 180 / Math.PI)
-                obj.angle = normalizeAngle(180 + node.meta.angle - (obj.arcAngle / 2))
+                const arcAngleRad = 2 * Math.atan(node.meta.scale.x / (Math.sqrt(3) * node.meta.scale.y))
+                const boardPixelSize = (node.meta.scale.y * 100) * (384 / 675)
+                obj.size = Math.round(boardPixelSize * (50 / 128))
+                obj.arcAngle = Math.round((arcAngleRad * 180 / Math.PI) / 10) * 10
+                const roundArcAngleRad = obj.arcAngle * Math.PI / 180
+                // calculate bounding box
+                let boardBoxWidth, boardBoxHeight
+                if (roundArcAngleRad <= Math.PI / 2) {
+                    boardBoxWidth = boardPixelSize * Math.sin(roundArcAngleRad)
+                    boardBoxHeight = boardPixelSize
+                } else if (roundArcAngleRad <= Math.PI) {
+                    boardBoxWidth = boardPixelSize
+                    boardBoxHeight = boardPixelSize * (1 - Math.cos(roundArcAngleRad))
+                } else if (roundArcAngleRad < Math.PI * 1.5) {
+                    boardBoxWidth = boardPixelSize * (1 + Math.sin(roundArcAngleRad))
+                    boardBoxHeight = boardPixelSize * 2
+                } else {
+                    boardBoxWidth = boardPixelSize * 2
+                    boardBoxHeight = boardPixelSize * 2
+                }
+
+                const boardAngle = normalizeAngle(180 + node.meta.angle - (obj.arcAngle / 2))
+
+                const raidplanCenterX = node.meta.pos.x
+                const raidplanCenterY = node.meta.pos.y
+
+                const raidplanTipLocationX = raidplanCenterX + (node.meta.scale.y * 50) * Math.sin(node.meta.angle * Math.PI / 180)
+                const raidplanTipLocationY = raidplanCenterY - (node.meta.scale.y * 50) * Math.cos(node.meta.angle * Math.PI / 180)
+
+                const raidplanCenterTipOffsetX = raidplanTipLocationX - raidplanCenterX
+                const raidplanCenterTipOffsetY = raidplanTipLocationY - raidplanCenterY
+
+                const boardTipCenterOffsetXUnrotated = boardBoxWidth / 2
+                const boardTipCenterOffsetYUnrotated = ((boardBoxHeight / 2) - boardPixelSize)
+
+                const boardTipCenterOffsetX = boardTipCenterOffsetXUnrotated * Math.cos(boardAngle * Math.PI / 180) - boardTipCenterOffsetYUnrotated * Math.sin(boardAngle * Math.PI / 180)
+                const boardTipCenterOffsetY = boardTipCenterOffsetYUnrotated * Math.cos(boardAngle * Math.PI / 180) + boardTipCenterOffsetXUnrotated * Math.sin(boardAngle * Math.PI / 180)
+
+                obj.x = Math.round(x + (raidplanCenterTipOffsetX * (512 / 900)) + boardTipCenterOffsetX)
+                obj.y = Math.round(y + (raidplanCenterTipOffsetY * (384 / 675)) + boardTipCenterOffsetY)
+
+                obj.angle = boardAngle
                 obj.colorR = undefined
                 obj.colorG = undefined
                 obj.colorB = undefined
-
-                // Same offset formula as wedge (derived from empirical data)
-                const raidplanAngleRad = node.meta.angle * Math.PI / 180
-                const sinAngle = Math.sin(raidplanAngleRad)
-                const offsetX = -45 * (1 + sinAngle)
-                const offsetY = 45 * (1 - sinAngle)
-                obj.x = Math.round(x + offsetX)
-                obj.y = Math.round(y + offsetY)
             }
 
 

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink, Image, Grid, Users, Split } from 'lucide-react'
 import { useState } from 'react'
+import { useIsInIframe } from '@/hooks/useIsInIframe'
 
 // Base URL for OG images (absolute URLs required by social platforms)
 const OG_BASE_URL = 'https://board.wtfdig.info'
@@ -72,6 +73,7 @@ export const Route = createFileRoute('/$code')({
 
 function ViewBoardPage() {
     const { code } = Route.useParams()
+    const isInIframe = useIsInIframe()
     const [copied, setCopied] = useState(false)
     const [urlCopied, setUrlCopied] = useState(false)
     const [useInGameBackground, setUseInGameBackground] = useState(true)
@@ -151,16 +153,18 @@ function ViewBoardPage() {
         <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-2 flex-col md:flex-row gap-4">
+                <div className="flex items-center justify-between mb-4 flex-col sm:flex-row gap-4">
                     <div className="flex items-center gap-4 justify-between w-full">
-                        <Link to="/">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                <span className="hidden md:inline">Back</span>
-                            </Button>
-                        </Link>
+                        {!isInIframe && (
+                            <Link to="/">
+                                <Button variant="ghost" size="sm">
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    <span className="hidden md:inline">Back</span>
+                                </Button>
+                            </Link>
+                        )}
                         <div className="grow">
-                            <h1 className="text-xl font-semibold">
+                            <h1 className="text-xl font-semibold overflow-auto">
                                 {board.name || 'Strategy Board'}
                             </h1>
                             <p className="text-sm text-muted-foreground">
@@ -169,7 +173,7 @@ function ViewBoardPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full justify-end">
                         <div className="flex flex-row items-center gap-2">
                             <Button variant="outline" size="sm" onClick={handleCopy}>
                                 {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
@@ -183,80 +187,83 @@ function ViewBoardPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end mb-4 flex-col md:flex-row gap-4">
-                    <div className="flex items-center gap-4 flex-wrap justify-end">
-                        {/* Highlight Select */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Highlight</span>
-                            <select
-                                value={highlightIndex}
-                                onChange={(e) => setHighlightIndex(Number(e.target.value))}
-                                className="h-8 px-2 rounded-md border border-border bg-background text-sm"
-                            >
-                                {highlightOptions.map((opt, idx) => (
-                                    <option key={idx} value={idx}>{opt}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* DPS Marker Toggle */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">DPS</span>
-                            <div className="flex items-center rounded-md border border-border overflow-hidden">
-                                <button
-                                    onClick={() => setUseSeparateDps(false)}
-                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent hover:bg-muted'
-                                        }`}
+                {/* Toggle Controls - hidden in iframe mode */}
+                {!isInIframe && (
+                    <div className="flex items-center justify-end mb-4 flex-col md:flex-row gap-4">
+                        <div className="flex items-center gap-4 flex-wrap justify-end">
+                            {/* Highlight Select */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Highlight</span>
+                                <select
+                                    value={highlightIndex}
+                                    onChange={(e) => setHighlightIndex(Number(e.target.value))}
+                                    className="h-8 px-2 rounded-md border border-border bg-background text-sm"
                                 >
-                                    <Users className="w-3.5 h-3.5" />
-                                    Unified
-                                </button>
-                                <button
-                                    onClick={() => setUseSeparateDps(true)}
-                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent hover:bg-muted'
-                                        }`}
-                                >
-                                    <Split className="w-3.5 h-3.5" />
-                                    Separate
-                                </button>
+                                    {highlightOptions.map((opt, idx) => (
+                                        <option key={idx} value={idx}>{opt}</option>
+                                    ))}
+                                </select>
                             </div>
-                        </div>
 
-                        {/* Background Toggle */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">BG</span>
-                            <div className="flex items-center rounded-md border border-border overflow-hidden">
-                                <button
-                                    onClick={() => setUseInGameBackground(true)}
-                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent hover:bg-muted'
-                                        }`}
-                                >
-                                    <Image className="w-3.5 h-3.5" />
-                                    In-Game
-                                </button>
-                                <button
-                                    onClick={() => setUseInGameBackground(false)}
-                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent hover:bg-muted'
-                                        }`}
-                                >
-                                    <Grid className="w-3.5 h-3.5" />
-                                    Simple
-                                </button>
+                            {/* DPS Marker Toggle */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">DPS</span>
+                                <div className="flex items-center rounded-md border border-border overflow-hidden">
+                                    <button
+                                        onClick={() => setUseSeparateDps(false)}
+                                        className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        <Users className="w-3.5 h-3.5" />
+                                        Unified
+                                    </button>
+                                    <button
+                                        onClick={() => setUseSeparateDps(true)}
+                                        className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        <Split className="w-3.5 h-3.5" />
+                                        Separate
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Background Toggle */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">BG</span>
+                                <div className="flex items-center rounded-md border border-border overflow-hidden">
+                                    <button
+                                        onClick={() => setUseInGameBackground(true)}
+                                        className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useInGameBackground
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        <Image className="w-3.5 h-3.5" />
+                                        In-Game
+                                    </button>
+                                    <button
+                                        onClick={() => setUseInGameBackground(false)}
+                                        className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useInGameBackground
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        <Grid className="w-3.5 h-3.5" />
+                                        Simple
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Board Renderer */}
-                <Card className="bg-card/50 border-border overflow-hidden">
+                <Card className={`bg-card/50 border-border overflow-hidden py-2 ${isInIframe ? 'py-0' : ''}`}>
                     <CardContent className="p-0">
                         <div className="aspect-[4/3] w-full">
                             <StrategyBoardRenderer
@@ -270,25 +277,27 @@ function ViewBoardPage() {
                     </CardContent>
                 </Card>
 
-                {/* Object List */}
-                <Card className="mt-6 bg-card/30 border-border">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Objects</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                            {board.objects.map((obj, i) => (
-                                <div key={i} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-                                    <span className="text-muted-foreground">#{i + 1}</span>
-                                    <span className="font-medium">{obj.type}</span>
-                                    <span className="text-muted-foreground">
-                                        ({Math.round(obj.x)}, {Math.round(obj.y)})
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Object List - hidden in iframe mode */}
+                {!isInIframe && (
+                    <Card className="mt-6 bg-card/30 border-border">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">Objects</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                {board.objects.map((obj, i) => (
+                                    <div key={i} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+                                        <span className="text-muted-foreground">#{i + 1}</span>
+                                        <span className="font-medium">{obj.type}</span>
+                                        <span className="text-muted-foreground">
+                                            ({Math.round(obj.x)}, {Math.round(obj.y)})
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     )

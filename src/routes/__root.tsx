@@ -3,6 +3,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import Header from '../components/Header'
+import { useIsInIframe } from '@/hooks/useIsInIframe'
 
 import appCss from '../styles.css?url'
 
@@ -49,6 +50,8 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const isInIframe = useIsInIframe()
+
   return (
     <html lang="en" className="dark">
       <head>
@@ -57,25 +60,36 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="min-h-screen bg-background text-foreground antialiased flex flex-col">
         <Header />
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-border bg-card/30 py-4 px-6">
-          <div className="max-w-5xl mx-auto flex flex-col lg:flex-row justify-between items-left gap-2 text-sm text-muted-foreground">
-            <div>
-              <p>FINAL FANTASY is a registered trademark of Square Enix Holdings Co., Ltd.</p>
-              <p>FINAL FANTASY XIV © SQUARE ENIX</p>
-            </div>
-            <div>
-              <div>Made by Mara Kaminagi and S'aize Riya @ Adamantoise</div>
+        {!isInIframe && (
+          <footer className="border-t border-border bg-card/30 py-4 px-6">
+            <div className="max-w-5xl mx-auto flex flex-col lg:flex-row justify-between items-left gap-2 text-sm text-muted-foreground">
               <div>
-                Really love the site? <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="anchor text-primary"
-                  href="https://ko-fi.com/mczub">Support us on Ko-fi!
-                </a>
+                <p>FINAL FANTASY is a registered trademark of Square Enix Holdings Co., Ltd.</p>
+                <p>FINAL FANTASY XIV © SQUARE ENIX</p>
+              </div>
+              <div>
+                <div>Made by Mara Kaminagi and S'aize Riya @ Adamantoise</div>
+                <div>
+                  Really love the site? <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="anchor text-primary"
+                    href="https://ko-fi.com/mczub">Support us on Ko-fi!
+                  </a>
+                </div>
+              </div>
+            </div>
+          </footer>
+        )}
+        {isInIframe && (
+          <div className=" bg-card/30 pb-4 px-6">
+            <div className="max-w-5xl mx-auto flex flex-col lg:flex-row justify-between items-left gap-2 text-xs text-muted-foreground">
+              <div>
+                <p>FINAL FANTASY is a registered trademark of Square Enix Holdings Co., Ltd. FINAL FANTASY XIV © SQUARE ENIX</p>
               </div>
             </div>
           </div>
-        </footer>
+        )}
         <TanStackDevtools
           config={{
             position: 'bottom-right',

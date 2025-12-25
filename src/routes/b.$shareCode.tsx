@@ -12,9 +12,10 @@ import type { StrategyBoard } from 'xiv-strat-board'
 import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Check, ExternalLink, AlertTriangle, Loader2, PenLine, Package, Copy, Users, Split } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, AlertTriangle, Loader2, PenLine, Package, Copy, Users, Split, ExternalLinkIcon } from 'lucide-react'
 import { makeFullCode } from '@/lib/bundleUtils'
 import { getBundle } from './api.bundles'
+import { useIsInIframe } from '@/hooks/useIsInIframe'
 
 export const Route = createFileRoute('/b/$shareCode')({
     component: BundleViewPage,
@@ -43,6 +44,7 @@ interface DecodedBoard {
 function BundleViewPage() {
     const { shareCode } = Route.useParams()
     const navigate = useNavigate()
+    const isInIframe = useIsInIframe()
     const [boards, setBoards] = useState<DecodedBoard[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -156,14 +158,16 @@ function BundleViewPage() {
         <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4 overflow-x-hidden">
             <div className="max-w-6xl mx-auto w-full">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4 flex-col md:flex-row gap-4">
+                <div className="flex items-center justify-between mb-4 flex-col sm:flex-row gap-4">
                     <div className="flex items-center gap-4 justify-between w-full">
-                        <Link to="/">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                <span className="hidden md:inline">Back</span>
-                            </Button>
-                        </Link>
+                        {!isInIframe && (
+                            <Link to="/">
+                                <Button variant="ghost" size="sm">
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    <span className="hidden md:inline">Back</span>
+                                </Button>
+                            </Link>
+                        )}
                         <div className="grow">
                             <h1 className="flex flex-row items-center gap-2 text-xl font-semibold">
                                 <Package className="w-6 h-6 text-primary" />
@@ -177,12 +181,11 @@ function BundleViewPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        {!isMultiBundle && (
+                    <div className="flex items-center gap-2 w-full justify-end">
+                        {!isMultiBundle && !isInIframe && (
                             <Button variant="outline" size="sm" onClick={handleCopyToNew}>
                                 <PenLine className="w-4 h-4 mr-2" />
-                                <span className="hidden md:inline">Copy to New</span>
-                                <span className="md:hidden">Copy</span>
+                                <span className="">Copy to New</span>
                             </Button>
                         )}
                         <Button variant="outline" size="sm" onClick={handleCopyUrl}>
@@ -192,57 +195,59 @@ function BundleViewPage() {
                     </div>
                 </div>
 
-                {/* Toggle Controls */}
-                <div className="flex items-center justify-end mb-4">
-                    <div className="flex items-center gap-4 flex-wrap justify-end">
-                        {/* Highlight Select */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Highlight</span>
-                            <select
-                                value={highlightIndex}
-                                onChange={(e) => setHighlightIndex(Number(e.target.value))}
-                                className="h-8 px-2 rounded-md border border-border bg-background text-sm"
-                            >
-                                {highlightOptions.map((opt, idx) => (
-                                    <option key={idx} value={idx}>{opt}</option>
-                                ))}
-                            </select>
-                        </div>
+                {/* Toggle Controls - hidden in iframe mode */}
+                {!isInIframe && (
+                    <div className="flex items-center justify-end mb-4">
+                        <div className="flex items-center gap-4 flex-wrap justify-end">
+                            {/* Highlight Select */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Highlight</span>
+                                <select
+                                    value={highlightIndex}
+                                    onChange={(e) => setHighlightIndex(Number(e.target.value))}
+                                    className="h-8 px-2 rounded-md border border-border bg-background text-sm"
+                                >
+                                    {highlightOptions.map((opt, idx) => (
+                                        <option key={idx} value={idx}>{opt}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                        {/* DPS Marker Toggle */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">DPS</span>
-                            <div className="flex items-center rounded-md border border-border overflow-hidden">
-                                <button
-                                    onClick={() => setUseSeparateDps(false)}
-                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent hover:bg-muted'
-                                        }`}
-                                >
-                                    <Users className="w-3.5 h-3.5" />
-                                    Unified
-                                </button>
-                                <button
-                                    onClick={() => setUseSeparateDps(true)}
-                                    className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent hover:bg-muted'
-                                        }`}
-                                >
-                                    <Split className="w-3.5 h-3.5" />
-                                    Separate
-                                </button>
+                            {/* DPS Marker Toggle */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">DPS</span>
+                                <div className="flex items-center rounded-md border border-border overflow-hidden">
+                                    <button
+                                        onClick={() => setUseSeparateDps(false)}
+                                        className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${!useSeparateDps
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        <Users className="w-3.5 h-3.5" />
+                                        Unified
+                                    </button>
+                                    <button
+                                        onClick={() => setUseSeparateDps(true)}
+                                        className={`px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors ${useSeparateDps
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        <Split className="w-3.5 h-3.5" />
+                                        Separate
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Boards Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full overflow-hidden">
                     {boards.map((item, index) => (
-                        <Card key={index} className="bg-card/50 border-border overflow-hidden">
-                            <CardHeader className="pb-2">
+                        <Card key={index} className="bg-card/50 border-border overflow-hidden py-2">
+                            <CardHeader className="pt-4">
                                 <div className="flex items-center justify-between">
                                     <CardTitle className="text-sm font-medium">
                                         Board {index + 1}
@@ -266,11 +271,24 @@ function BundleViewPage() {
                                             {copiedIndex === index ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
                                             Copy
                                         </Button>
-                                        <Link to="/$code" params={{ code: encodeURIComponent(item.code) }}>
-                                            <Button variant="ghost" size="sm" className="h-7 px-2">
-                                                View
-                                            </Button>
-                                        </Link>
+                                        {isInIframe ? (
+                                            <a
+                                                href={`/${encodeURIComponent(item.code)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <Button variant="ghost" size="sm" className="h-7 px-2">
+                                                    <ExternalLinkIcon className="w-3.5 h-3.5 mr-1" />
+                                                    Open
+                                                </Button>
+                                            </a>
+                                        ) : (
+                                            <Link to="/$code" params={{ code: encodeURIComponent(item.code) }}>
+                                                <Button variant="ghost" size="sm" className="h-7 px-2">
+                                                    View
+                                                </Button>
+                                            </Link>
+                                        )}
                                     </div>
                                 </div>
                             </CardHeader>

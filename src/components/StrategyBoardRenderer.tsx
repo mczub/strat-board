@@ -458,13 +458,13 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const endY = radius * Math.sin(endAngleRad)
 
         minX = Math.min(0, endX)
-        maxX = Math.max(0, endX)
-        maxY = Math.max(0, endY)
+        maxX = Math.max(0, endX + 16)
+        maxY = Math.max(0, endY + 16)
 
         // Check cardinal directions if they fall within the arc sweep
-        if (endAngleRad > 0) { maxX = radius }  // East
-        if (endAngleRad > Math.PI / 2) { maxY = radius }  // South
-        if (endAngleRad > Math.PI) { minX = -radius }  // West
+        if (endAngleRad > 0) { maxX = radius + 16 }  // East
+        if (endAngleRad > Math.PI / 2) { maxY = radius + 16 }  // South
+        if (endAngleRad > Math.PI) { minX = -radius - 16 }  // West
 
         // Bounding box center offset from the cone tip (which is at 0,0)
         const bboxCenterX = (minX + maxX) / 2

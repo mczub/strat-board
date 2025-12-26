@@ -514,14 +514,14 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
 
     // Bounds include tip (0,0), start point (0, -radius) and end point
     let minX = Math.min(0, outerEndX)
-    let maxX = Math.max(0, outerEndX)
+    let maxX = Math.max(0, outerEndX + 16)
     let minY = Math.min(0, -radius, outerEndY)
-    let maxY = Math.max(0, -radius, outerEndY)
+    let maxY = Math.max(0, -radius, outerEndY + 16)
 
     // Check cardinal directions if they fall within the arc sweep
-    if (endAngleRad > 0) { maxX = radius }
-    if (endAngleRad > Math.PI / 2) { maxY = radius }
-    if (endAngleRad > Math.PI) { minX = -radius }
+    if (endAngleRad > 0) { maxX = radius + 16 }
+    if (endAngleRad > Math.PI / 2) { maxY = radius + 16 }
+    if (endAngleRad > Math.PI) { minX = -radius - 16 }
 
     // Center of the bounding box
     const bboxCenterX = (minX + maxX) / 2

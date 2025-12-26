@@ -68,10 +68,40 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
   line_aoe: 80, line: 80,
 }
 
-// Types that use geometric rendering (not icons)
-const GEOMETRIC_TYPES = new Set([
-  'circle_aoe', 'fan_aoe', 'donut', 'line_aoe', 'line', 'text'
-])
+// Pre-computed board dimensions (matching handler constants)
+const BOARD_WIDTH = 696
+const BOARD_HEIGHT = 522
+
+// Pre-computed grid lines (static, no need to rebuild per-request)
+const GRID_LINES_VERTICAL = [1, 2, 3, 4, 5, 6, 7].map((i) => ({
+  type: 'div',
+  key: `v${i}`,
+  props: {
+    style: {
+      position: 'absolute',
+      left: i * (BOARD_WIDTH / 8),
+      top: 0,
+      width: 2,
+      height: BOARD_HEIGHT,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+    },
+  },
+}))
+
+const GRID_LINES_HORIZONTAL = [1, 2, 3, 4, 5].map((i) => ({
+  type: 'div',
+  key: `h${i}`,
+  props: {
+    style: {
+      position: 'absolute',
+      left: 0,
+      top: i * (BOARD_HEIGHT / 6),
+      width: BOARD_WIDTH,
+      height: 2,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+    },
+  },
+}))
 
 // Types that render as transparent overlays
 const OVERLAY_TYPES = new Set([
@@ -82,6 +112,10 @@ const OVERLAY_TYPES = new Set([
 const AOE_COLOR = 'rgba(255, 123, 0, 0.4)'
 const AOE_BORDER = 'rgba(255, 123, 0, 0.8)'
 const DEFAULT_AOE_COLOR = '#FFA131'
+
+// Grid size limits to prevent excessive element generation
+const MAX_KNOCKBACK_GRID = 5  // Max 5x5 = 25 elements per knockback
+const MAX_LINE_STACK = 5      // Max 5 elements per line_stack
 
 // Get color for an object (matching StrategyBoardRenderer logic)
 function getObjectColor(obj: StrategyObject): string {
@@ -129,8 +163,8 @@ export const Route = createFileRoute('/api/og')({
           // Image dimensions
           const width = 1200
           const height = 630
-          const boardWidth = 696
-          const boardHeight = 522
+          const boardWidth = BOARD_WIDTH
+          const boardHeight = BOARD_HEIGHT
           const scale = boardWidth / 512
           const offsetX = (width - boardWidth) / 2
           const offsetY = 80
@@ -201,36 +235,9 @@ export const Route = createFileRoute('/api/og')({
                       overflow: 'hidden',
                     },
                     children: [
-                      // Grid lines - vertical
-                      ...[1, 2, 3, 4, 5, 6, 7].map((i) => ({
-                        type: 'div',
-                        key: `v${i}`,
-                        props: {
-                          style: {
-                            position: 'absolute',
-                            left: i * (boardWidth / 8),
-                            top: 0,
-                            width: 2,
-                            height: boardHeight,
-                            backgroundColor: 'rgba(255,255,255,0.15)',
-                          },
-                        },
-                      })),
-                      // Grid lines - horizontal
-                      ...[1, 2, 3, 4, 5].map((i) => ({
-                        type: 'div',
-                        key: `h${i}`,
-                        props: {
-                          style: {
-                            position: 'absolute',
-                            left: 0,
-                            top: i * (boardHeight / 6),
-                            width: boardWidth,
-                            height: 2,
-                            backgroundColor: 'rgba(255,255,255,0.15)',
-                          },
-                        },
-                      })),
+                      // Pre-computed grid lines
+                      ...GRID_LINES_VERTICAL,
+                      ...GRID_LINES_HORIZONTAL,
                       // Objects (relative to board origin)
                       ...objectElements,
                     ],
@@ -280,29 +287,133 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
-  // Donut AoE (using thick border for transparent center)
+  // Donut AoE - using inline SVG (matches StrategyBoardRenderer logic exactly)
   if (type === 'donut') {
+    // In StrategyBoardRenderer: scale = (obj.size ?? 100) / 100, and both radii use it
+    // Here: objScale = (obj.size ?? 100) / 100, scale = boardWidth / 512
     const outerRadius = 248 * objScale * scale
-    const innerRadius = (obj.donutRadius ?? 100) * scale
-    const ringWidth = outerRadius - innerRadius
-    // The div's actual size is the mean of inner and outer diameter
-    // The thick border extends inward and outward from that
-    const meanRadius = (outerRadius + innerRadius) / 2
+    const innerRadius = obj.donutRadius !== undefined
+      ? obj.donutRadius * objScale * scale  // Fixed: apply objScale like outerRadius
+      : outerRadius * 0.4
+    const arcAngle = obj.arcAngle ?? 360
+    const rotation = obj.angle ?? 0
+    const color = getObjectColor(obj)  // Use same color as StrategyBoardRenderer
+
+    // Build transform string for rotation and flips
+    const buildTransform = (): string | undefined => {
+      const transforms: string[] = []
+      if (rotation) transforms.push(`rotate(${rotation}deg)`)
+      if (obj.horizontalFlip) transforms.push('scaleX(-1)')
+      if (obj.verticalFlip) transforms.push('scaleY(-1)')
+      return transforms.length > 0 ? transforms.join(' ') : undefined
+    }
+    const transform = buildTransform()
+
+    // Full circle donut - stroked circle approach
+    if (arcAngle >= 360) {
+      const ringWidth = outerRadius - innerRadius
+      const meanRadius = (outerRadius + innerRadius) / 2
+      // SVG size needs to fit the outer radius + stroke widths
+      const svgSize = (outerRadius + 4) * 2
+
+      return {
+        type: 'svg',
+        key: `obj${idx}`,
+        props: {
+          width: svgSize,
+          height: svgSize,
+          viewBox: `0 0 ${svgSize} ${svgSize}`,
+          style: {
+            position: 'absolute',
+            left: x - svgSize / 2,
+            top: y - svgSize / 2,
+            ...(transform && { transform }),
+          },
+          children: {
+            type: 'circle',
+            props: {
+              cx: svgSize / 2,
+              cy: svgSize / 2,
+              r: meanRadius,
+              fill: 'none',
+              stroke: color,
+              strokeWidth: ringWidth,
+              opacity: 0.5,
+            },
+          },
+        },
+      }
+    }
+
+    // Partial donut arc
+    const svgSize = outerRadius * 2 + 8
+    const arcAngleRad = (arcAngle * Math.PI) / 180
+    const startAngleRad = -Math.PI / 2
+    const endAngleRad = startAngleRad + arcAngleRad
+
+    // Find bounding box extremes
+    const outerEndX = outerRadius * Math.cos(endAngleRad)
+    const outerEndY = outerRadius * Math.sin(endAngleRad)
+    const innerEndX = innerRadius * Math.cos(endAngleRad)
+    const innerEndY = innerRadius * Math.sin(endAngleRad)
+
+    let minX = Math.min(0, 0, outerEndX, innerEndX)
+    let maxX = Math.max(0, 0, outerEndX, innerEndX)
+    let minY = Math.min(-outerRadius, -innerRadius, outerEndY, innerEndY)
+    let maxY = Math.max(-outerRadius, -innerRadius, outerEndY, innerEndY)
+
+    if (endAngleRad > 0) { maxX = outerRadius }
+    if (endAngleRad > Math.PI / 2) { maxY = outerRadius }
+    if (endAngleRad > Math.PI) { minX = -outerRadius }
+
+    const bboxCenterX = (minX + maxX) / 2
+    const bboxCenterY = (minY + maxY) / 2
+
+    // x,y is bounding box center, offset to get arc center
+    const centerX = svgSize / 2 - bboxCenterX
+    const centerY = svgSize / 2 - bboxCenterY
+
+    // Arc angles for SVG path (same as StrategyBoardRenderer)
+    const startAngle = -90
+    const endAngle = -90 + arcAngle
+    const startRad = (startAngle * Math.PI) / 180
+    const endRad = (endAngle * Math.PI) / 180
+
+    const ox1 = centerX + outerRadius * Math.cos(startRad)
+    const oy1 = centerY + outerRadius * Math.sin(startRad)
+    const ox2 = centerX + outerRadius * Math.cos(endRad)
+    const oy2 = centerY + outerRadius * Math.sin(endRad)
+
+    const ix1 = centerX + innerRadius * Math.cos(startRad)
+    const iy1 = centerY + innerRadius * Math.sin(startRad)
+    const ix2 = centerX + innerRadius * Math.cos(endRad)
+    const iy2 = centerY + innerRadius * Math.sin(endRad)
+
+    const largeArc = arcAngle > 180 ? 1 : 0
+    const d = `M ${ox1} ${oy1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${ox2} ${oy2} L ${ix2} ${iy2} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${ix1} ${iy1} Z`
+
     return {
-      type: 'div',
+      type: 'svg',
       key: `obj${idx}`,
       props: {
+        width: svgSize,
+        height: svgSize,
+        viewBox: `0 0 ${svgSize} ${svgSize}`,
         style: {
           position: 'absolute',
-          left: x - meanRadius,
-          top: y - meanRadius,
-          width: meanRadius * 2,
-          height: meanRadius * 2,
-          borderRadius: '50%',
-          backgroundColor: 'transparent',
-          border: `${ringWidth}px solid ${AOE_COLOR}`,
-          // Outer stroke using outline
-          outline: `2px solid ${AOE_BORDER}`,
+          left: x - svgSize / 2,
+          top: y - svgSize / 2,
+          ...(transform && { transform }),
+        },
+        children: {
+          type: 'path',
+          props: {
+            d: d,
+            fill: color,
+            fillOpacity: 0.5,
+            stroke: color,
+            strokeWidth: 2,
+          },
         },
       },
     }
@@ -375,25 +486,93 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
-  // Fan AoE (approximated as pie slice using conic gradient)
+  // Fan AoE (using inline SVG)
   if (type === 'fan_aoe') {
-    const radius = 200 * objScale * scale
-    const angle = obj.arcAngle ?? 90
-    // Note: Satori doesn't support conic-gradient, so we approximate with a circle
+    const radius = 240 * objScale * scale
+    const arcAngle = obj.arcAngle ?? 90
+    const rotation = obj.angle ?? 0
+    const color = getObjectColor(obj)
+
+    // Build transform string for rotation and flips
+    const buildTransform = (): string | undefined => {
+      const transforms: string[] = []
+      if (rotation) transforms.push(`rotate(${rotation}deg)`)
+      if (obj.horizontalFlip) transforms.push('scaleX(-1)')
+      if (obj.verticalFlip) transforms.push('scaleY(-1)')
+      return transforms.length > 0 ? transforms.join(' ') : undefined
+    }
+    const transform = buildTransform()
+
+    // Bounding box calculation
+    const arcAngleRad = (arcAngle * Math.PI) / 180
+    const startAngleRad = -Math.PI / 2
+    const endAngleRad = startAngleRad + arcAngleRad
+
+    // End point of the arc
+    const outerEndX = radius * Math.cos(endAngleRad)
+    const outerEndY = radius * Math.sin(endAngleRad)
+
+    // Bounds include tip (0,0), start point (0, -radius) and end point
+    let minX = Math.min(0, outerEndX)
+    let maxX = Math.max(0, outerEndX)
+    let minY = Math.min(0, -radius, outerEndY)
+    let maxY = Math.max(0, -radius, outerEndY)
+
+    // Check cardinal directions if they fall within the arc sweep
+    if (endAngleRad > 0) { maxX = radius }
+    if (endAngleRad > Math.PI / 2) { maxY = radius }
+    if (endAngleRad > Math.PI) { minX = -radius }
+
+    // Center of the bounding box
+    const bboxCenterX = (minX + maxX) / 2
+    const bboxCenterY = (minY + maxY) / 2
+
+    // Size of the SVG canvas
+    const svgSize = radius * 2 + 8
+
+    // Calculate cone tip position in SVG coordinates
+    // SVG Center = BBox Center. Tip is relative to BBox Center.
+    const tipX = svgSize / 2 - bboxCenterX
+    const tipY = svgSize / 2 - bboxCenterY
+
+    // Path calculation
+    const startAngle = -90
+    const endAngle = -90 + arcAngle
+    const startRad = (startAngle * Math.PI) / 180
+    const endRad = (endAngle * Math.PI) / 180
+
+    const x1 = tipX + radius * Math.cos(startRad)
+    const y1 = tipY + radius * Math.sin(startRad)
+    const x2 = tipX + radius * Math.cos(endRad)
+    const y2 = tipY + radius * Math.sin(endRad)
+
+    const largeArc = arcAngle > 180 ? 1 : 0
+
+    // Cone path: Tip -> Start -> Arc -> End -> Close
+    const d = `M ${tipX} ${tipY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`
+
     return {
-      type: 'div',
+      type: 'svg',
       key: `obj${idx}`,
       props: {
+        width: svgSize,
+        height: svgSize,
+        viewBox: `0 0 ${svgSize} ${svgSize}`,
         style: {
           position: 'absolute',
-          left: x - radius,
-          top: y - radius,
-          width: radius * 2,
-          height: radius * 2,
-          borderRadius: '50%',
-          backgroundColor: AOE_COLOR,
-          border: `2px solid ${AOE_BORDER}`,
-          opacity: angle / 360,
+          left: x - svgSize / 2,
+          top: y - svgSize / 2,
+          ...(transform && { transform }),
+        },
+        children: {
+          type: 'path',
+          props: {
+            d,
+            fill: color,
+            fillOpacity: 0.5,
+            stroke: color,
+            strokeWidth: 2,
+          },
         },
       },
     }
@@ -420,38 +599,59 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
-  // Build transform string for rotation and flip
-  const transforms: string[] = []
-  if (obj.angle) {
-    transforms.push(`rotate(${obj.angle}deg)`)
-  }
-  if (obj.horizontalFlip) {
-    transforms.push('scaleX(-1)')
-  }
-  if (obj.verticalFlip) {
-    transforms.push('scaleY(-1)')
-  }
-  const transform = transforms.length > 0 ? transforms.join(' ') : null
-
   // Try to get embedded icon
   const iconDataUrl = getIconDataUrl(type)
   if (iconDataUrl) {
     const baseSize = ICON_SIZE_DEFAULTS[type] ?? 32
     const size = baseSize * objScale * scale
+    const hasTransform = obj.angle || obj.horizontalFlip || obj.verticalFlip
+
+    // Fast path: simple icons with no transforms
+    if (!hasTransform && type !== 'linear_knockback' && type !== 'line_stack') {
+      return {
+        type: 'img',
+        key: `obj${idx}`,
+        props: {
+          src: iconDataUrl,
+          width: size,
+          height: size,
+          style: {
+            position: 'absolute',
+            left: x - size / 2,
+            top: y - size / 2,
+          },
+        },
+      }
+    }
+
+    // Build transform string for rotation and flip
+    const transforms: string[] = []
+    if (obj.angle) {
+      transforms.push(`rotate(${obj.angle}deg)`)
+    }
+    if (obj.horizontalFlip) {
+      transforms.push('scaleX(-1)')
+    }
+    if (obj.verticalFlip) {
+      transforms.push('scaleY(-1)')
+    }
+    const transform = transforms.length > 0 ? transforms.join(' ') : null
 
     // Special handling for linear_knockback (grid of icons)
     if (type === 'linear_knockback') {
-      const hCount = obj.horizontalCount ?? 1
-      const vCount = obj.verticalCount ?? 1
+      // Cap grid size to prevent excessive element generation
+      const hCount = Math.min(obj.horizontalCount ?? 1, MAX_KNOCKBACK_GRID)
+      const vCount = Math.min(obj.verticalCount ?? 1, MAX_KNOCKBACK_GRID)
       // Use baseSize for spacing calculation (same as StrategyBoardRenderer)
       const baseSpacing = baseSize * objScale * 0.91
       const spacing = baseSpacing * scale
       const children = []
 
       // Convert angle to radians for rotation calculation
+      // Fast path: skip trig for zero rotation
       const angleRad = (obj.angle ?? 0) * Math.PI / 180
-      const cos = Math.cos(angleRad)
-      const sin = Math.sin(angleRad)
+      const cos = angleRad === 0 ? 1 : Math.cos(angleRad)
+      const sin = angleRad === 0 ? 0 : Math.sin(angleRad)
 
       for (let row = 0; row < vCount; row++) {
         for (let col = 0; col < hCount; col++) {
@@ -487,7 +687,8 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
 
     // Special handling for line_stack (vertical repeat)
     if (type === 'line_stack') {
-      const displayCount = obj.displayCount ?? 1
+      // Cap display count to prevent excessive element generation
+      const displayCount = Math.min(obj.displayCount ?? 1, MAX_LINE_STACK)
       // Use baseSize for spacing calculation (same as StrategyBoardRenderer)
       const baseSpacing = baseSize * objScale * 1.04
       const spacing = baseSpacing * scale
@@ -533,9 +734,17 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
     }
   }
 
-  // Fallback to colored circle
+  // Fallback to colored circle (for unknown icon types)
   const baseSize = ICON_SIZE_DEFAULTS[type] ?? 32
   const size = baseSize * objScale * scale
+
+  // Build transform for fallback
+  const fallbackTransforms: string[] = []
+  if (obj.angle) fallbackTransforms.push(`rotate(${obj.angle}deg)`)
+  if (obj.horizontalFlip) fallbackTransforms.push('scaleX(-1)')
+  if (obj.verticalFlip) fallbackTransforms.push('scaleY(-1)')
+  const fallbackTransform = fallbackTransforms.length > 0 ? fallbackTransforms.join(' ') : null
+
   return {
     type: 'div',
     key: `obj${idx}`,
@@ -548,7 +757,7 @@ function renderObject(obj: StrategyObject, idx: number, scale: number, offsetX: 
         height: size,
         borderRadius: '50%',
         backgroundColor: '#9333ea',
-        ...(transform && { transform }),
+        ...(fallbackTransform && { transform: fallbackTransform }),
       },
     },
   }

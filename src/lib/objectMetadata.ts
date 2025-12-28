@@ -240,13 +240,12 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             color: COLOR_PARAM,
         }
     },
-    // Line - special SVG
+    // Line - uses x,y (start) and endX,endY (end), size is stroke width
     line: {
-        baseSize: 20,
+        baseSize: 3,
         isSvg: true,
         parameters: {
-            height: { min: 10, max: 500, step: 1, default: 100, label: 'Length' },
-            angle: ANGLE_PARAM,
+            size: { min: 2, max: 10, step: 1, default: 6, label: 'Height' },
             color: COLOR_PARAM,
             transparency: TRANSPARENCY_PARAM,
         }

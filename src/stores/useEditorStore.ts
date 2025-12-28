@@ -67,12 +67,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }
 
         const defaultProps = getDefaultProperties(type)
+        const centerX = BOARD_WIDTH / 2
+        const centerY = BOARD_HEIGHT / 2
+
+        // Special handling for lines - they need endX, endY
+        const lineDefaults = type === 'line' ? {
+            endX: centerX + 50,
+            endY: centerY - 50
+        } : {}
+
         const newObject: EditorObject = {
             id: nanoid(8),
             type,
-            x: BOARD_WIDTH / 2,
-            y: BOARD_HEIGHT / 2,
+            x: centerX,
+            y: centerY,
             ...defaultProps,
+            ...lineDefaults,
             ...props,
         }
 

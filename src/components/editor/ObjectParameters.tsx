@@ -4,6 +4,7 @@
  * Dynamically renders parameter controls based on object metadata.
  */
 
+import React from 'react'
 import { useEditorStore } from '@/stores/useEditorStore'
 import { getObjectMetadata, type ParameterType } from '@/lib/objectMetadata'
 import { VALID_COLORS } from '@/lib/utils'
@@ -15,6 +16,7 @@ interface ObjectParametersProps {
 }
 
 // Slider component for numeric parameters with editable input
+// Uses RAF throttling to limit store updates while maintaining smooth visual feedback
 function ParameterSlider({
     label,
     value,
@@ -30,26 +32,67 @@ function ParameterSlider({
     step?: number
     onChange: (value: number) => void
 }) {
+    // Local state for immediate visual feedback
+    const [localValue, setLocalValue] = React.useState(value)
+    const rafRef = React.useRef<number | null>(null)
+    const pendingValueRef = React.useRef<number | null>(null)
+
+    // Sync local value when external value changes (e.g., undo/redo or initial load)
+    React.useEffect(() => {
+        setLocalValue(value)
+    }, [value])
+
+    // Cleanup RAF on unmount
+    React.useEffect(() => {
+        return () => {
+            if (rafRef.current !== null) {
+                cancelAnimationFrame(rafRef.current)
+            }
+        }
+    }, [])
+
+    // Throttled onChange that batches updates to next animation frame
+    const throttledOnChange = React.useCallback((newValue: number) => {
+        setLocalValue(newValue) // Immediate visual update
+        pendingValueRef.current = newValue
+
+        if (rafRef.current === null) {
+            rafRef.current = requestAnimationFrame(() => {
+                rafRef.current = null
+                if (pendingValueRef.current !== null) {
+                    onChange(pendingValueRef.current)
+                    pendingValueRef.current = null
+                }
+            })
+        }
+    }, [onChange])
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = Number(e.target.value)
         if (!isNaN(newValue)) {
             // Clamp value to min/max
-            onChange(Math.max(min, Math.min(max, newValue)))
+            throttledOnChange(Math.max(min, Math.min(max, newValue)))
         }
     }
 
     return (
         <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-                <label className="text-xs text-muted-foreground">{label}</label>
+                <label className="text-sm text-muted-foreground">{label}</label>
                 <input
                     type="number"
                     min={min}
                     max={max}
                     step={step}
-                    value={value}
+                    value={localValue}
                     onChange={handleInputChange}
-                    className="w-14 h-5 px-1 text-xs text-right bg-muted border border-border rounded tabular-nums"
+                    onKeyDown={(e) => {
+                        // Stop Delete/Backspace from propagating to global handler
+                        if (e.key === 'Delete' || e.key === 'Backspace') {
+                            e.stopPropagation()
+                        }
+                    }}
+                    className="w-16 h-7 px-2 text-sm text-right bg-muted border border-border rounded tabular-nums"
                 />
             </div>
             <input
@@ -57,8 +100,8 @@ function ParameterSlider({
                 min={min}
                 max={max}
                 step={step}
-                value={value}
-                onChange={(e) => onChange(Number(e.target.value))}
+                value={localValue}
+                onChange={(e) => throttledOnChange(Number(e.target.value))}
                 className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
             />
         </div>
@@ -213,11 +256,17 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
             case 'text':
                 return (
                     <div key={paramType} className="col-span-2 space-y-1">
-                        <label className="text-xs text-muted-foreground">Text (max 30)</label>
+                        <label className="text-sm text-muted-foreground">Text (max 30)</label>
                         <Input
                             type="text"
                             value={selectedObject.text || ''}
                             onChange={(e) => handleTextChange(e.target.value)}
+                            onKeyDown={(e) => {
+                                // Stop Delete/Backspace from propagating to global handler
+                                if (e.key === 'Delete' || e.key === 'Backspace') {
+                                    e.stopPropagation()
+                                }
+                            }}
                             maxLength={30}
                             className="h-8"
                         />

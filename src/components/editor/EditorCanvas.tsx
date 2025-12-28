@@ -6,13 +6,17 @@
 
 import { Stage, Layer, Image as KonvaImage, Rect, Circle, Text, Line, Group, Shape, Ring } from 'react-konva'
 import { useEditorStore, type EditorObject } from '@/stores/useEditorStore'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo, useCallback } from 'react'
 import Konva from 'konva'
 import { OBJECT_METADATA } from '@/lib/objectMetadata'
 
 // Board dimensions
 const BOARD_WIDTH = 512
 const BOARD_HEIGHT = 384
+
+// Clamp coordinates to canvas bounds
+const clampX = (x: number) => Math.max(0, Math.min(BOARD_WIDTH, x))
+const clampY = (y: number) => Math.max(0, Math.min(BOARD_HEIGHT, y))
 
 // Background image paths
 const BG_PATHS: Record<string, string> = {
@@ -60,12 +64,15 @@ function useImage(src: string): HTMLImageElement | null {
 }
 
 // Component to render a single object
-function EditorObjectNode({ obj, isSelected, onSelect }: {
+const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSelect }: {
     obj: EditorObject
     isSelected: boolean
     onSelect: () => void
 }) {
-    const { moveObject } = useEditorStore()
+    // Use getState() to avoid subscribing to store changes
+    const moveObject = useCallback((id: string, x: number, y: number) => {
+        useEditorStore.getState().moveObject(id, x, y)
+    }, [])
     const iconSrc = `/icons/${obj.type}.png`
     const image = useImage(iconSrc)
 
@@ -74,15 +81,31 @@ function EditorObjectNode({ obj, isSelected, onSelect }: {
     const scale = (obj.size ?? 100) / 100
     const size = baseSize * scale
 
-    // Handle drag end
+    // Handle drag end (no onDragMove to avoid lag from per-frame re-renders)
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-        moveObject(obj.id, e.target.x(), e.target.y())
+        // Clamp to canvas bounds
+        const x = clampX(e.target.x())
+        const y = clampY(e.target.y())
+        e.target.x(x)
+        e.target.y(y)
+        moveObject(obj.id, x, y)
     }
 
     // Render based on type
     if (obj.type === 'text') {
-        const textWidth = (obj.text?.length || 4) * 10 * scale
-        const textHeight = 16 * scale
+        const fontSize = 16.5 * scale
+        const textContent = obj.text || 'Text'
+        const textHeight = fontSize
+        const verticalPadding = 4 // Few pixels top/bottom to match in-game
+
+        // Use a temporary Konva Text node to measure exact width
+        const tempText = new Konva.Text({
+            text: textContent,
+            fontSize: fontSize,
+        })
+        const textWidth = tempText.width()
+        tempText.destroy()
+
         return (
             <Group
                 x={obj.x}
@@ -93,20 +116,24 @@ function EditorObjectNode({ obj, isSelected, onSelect }: {
                 onTap={onSelect}
             >
                 <Text
-                    text={obj.text || 'Text'}
-                    fontSize={16 * scale}
+                    text={textContent}
+                    fontSize={fontSize}
                     fill={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`}
+                    stroke="#000"
+                    strokeWidth={0.4}
                     align="center"
+                    paintOrder="stroke fill"
                     offsetX={textWidth / 2}
                     offsetY={textHeight / 2}
                     opacity={(100 - (obj.transparency ?? 0)) / 100}
+                    font-weight="bolder"
                 />
                 {isSelected && (
                     <Rect
-                        x={-textWidth / 2 - 4}
-                        y={-textHeight / 2 - 4}
-                        width={textWidth + 8}
-                        height={textHeight + 8}
+                        x={-textWidth / 2}
+                        y={-textHeight / 2 - verticalPadding}
+                        width={textWidth}
+                        height={textHeight + verticalPadding * 2}
                         stroke="#3b82f6"
                         strokeWidth={2}
                         fill="transparent"
@@ -395,35 +422,169 @@ function EditorObjectNode({ obj, isSelected, onSelect }: {
     }
 
     if (obj.type === 'line') {
-        const length = obj.height ?? 100
-        const rotation = obj.angle ?? 0
+        // Lines use x,y as start point, endX,endY as end point
+        const startX = obj.x
+        const startY = obj.y
+        const endX = obj.endX ?? (obj.x + 50)
+        const endY = obj.endY ?? (obj.y - 50)
+        const strokeWidth = obj.height ?? 3
+        const opacity = (100 - (obj.transparency ?? 0)) / 100
+
+        // Refs for the Lines so we can update them during drag
+        const lineRef = useRef<Konva.Line>(null)
+        const outlineRef = useRef<Konva.Line>(null)
+
+        // Special drag handler for lines - we need to move both start and end points
+        // Only update on drag end to avoid exponential drift
+        const handleLineDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+            const deltaX = e.target.x()
+            const deltaY = e.target.y()
+            // Reset drag position and update both points, clamped to bounds
+            e.target.x(0)
+            e.target.y(0)
+            const { updateObject } = useEditorStore.getState()
+            updateObject(obj.id, {
+                x: clampX(startX + deltaX),
+                y: clampY(startY + deltaY),
+                endX: clampX(endX + deltaX),
+                endY: clampY(endY + deltaY)
+            })
+        }
+
+        // Handler for dragging the start point handle
+        const handleStartPointDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+            e.cancelBubble = true // Stop propagation to parent Group
+            const newX = clampX(e.target.x())
+            const newY = clampY(e.target.y())
+            e.target.x(newX)
+            e.target.y(newY)
+            const { updateObject } = useEditorStore.getState()
+            updateObject(obj.id, { x: newX, y: newY })
+        }
+
+        // Update Line and selection outline visually during start point drag
+        const handleStartPointDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+            e.cancelBubble = true
+            // Clamp to bounds
+            const newStartX = clampX(e.target.x())
+            const newStartY = clampY(e.target.y())
+            e.target.x(newStartX)
+            e.target.y(newStartY)
+            // Update line points
+            if (lineRef.current) {
+                lineRef.current.points([newStartX, newStartY, endX, endY])
+            }
+            // Update selection outline
+            if (outlineRef.current) {
+                outlineRef.current.points([newStartX, newStartY, endX, endY])
+            }
+        }
+
+        // Handler for dragging the end point handle
+        const handleEndPointDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+            e.cancelBubble = true // Stop propagation to parent Group
+            const newX = clampX(e.target.x())
+            const newY = clampY(e.target.y())
+            e.target.x(newX)
+            e.target.y(newY)
+            const { updateObject } = useEditorStore.getState()
+            updateObject(obj.id, { endX: newX, endY: newY })
+        }
+
+        // Update Line and selection outline visually during end point drag
+        const handleEndPointDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+            e.cancelBubble = true
+            // Clamp to bounds
+            const newEndX = clampX(e.target.x())
+            const newEndY = clampY(e.target.y())
+            e.target.x(newEndX)
+            e.target.y(newEndY)
+            // Update line points
+            if (lineRef.current) {
+                lineRef.current.points([startX, startY, newEndX, newEndY])
+            }
+            // Update selection outline
+            if (outlineRef.current) {
+                outlineRef.current.points([startX, startY, newEndX, newEndY])
+            }
+        }
+
+        // Stop the parent Group from dragging when we start dragging a handle
+        const handlePointDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
+            e.cancelBubble = true // Stop propagation to parent Group
+        }
+
         return (
             <Group
-                x={obj.x}
-                y={obj.y}
-                rotation={rotation}
                 draggable
-                onDragEnd={handleDragEnd}
+                onDragEnd={handleLineDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
-                <Line
-                    points={[0, 0, 0, -length]}
-                    stroke={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`}
-                    strokeWidth={3}
-                    opacity={(100 - (obj.transparency ?? 0)) / 100}
-                />
+                {/* Selection outline - rendered first so it's behind main line */}
                 {isSelected && (
-                    <Rect
-                        x={-4}
-                        y={-length - 2}
-                        width={8}
-                        height={length + 4}
+                    <Line
+                        ref={outlineRef}
+                        points={[startX, startY, endX, endY]}
                         stroke="#3b82f6"
-                        strokeWidth={2}
-                        fill="transparent"
+                        strokeWidth={strokeWidth + 4}
+                        lineCap="round"
                         listening={false}
                     />
+                )}
+                <Line
+                    ref={lineRef}
+                    points={[startX, startY, endX, endY]}
+                    stroke={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`}
+                    strokeWidth={strokeWidth}
+                    opacity={opacity}
+                    hitStrokeWidth={Math.max(strokeWidth, 10)} // Easier to click
+                />
+                {isSelected && (
+                    <>
+                        {/* Start point handle - draggable */}
+                        <Circle
+                            x={startX}
+                            y={startY}
+                            radius={4}
+                            fill="#fff"
+                            stroke="#fff"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={handlePointDragStart}
+                            onDragMove={handleStartPointDragMove}
+                            onDragEnd={handleStartPointDragEnd}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                        />
+                        {/* End point handle - draggable */}
+                        <Circle
+                            x={endX}
+                            y={endY}
+                            radius={4}
+                            fill="#fff"
+                            stroke="#fff"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={handlePointDragStart}
+                            onDragMove={handleEndPointDragMove}
+                            onDragEnd={handleEndPointDragEnd}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                        />
+                    </>
                 )}
             </Group>
         )
@@ -481,7 +642,35 @@ function EditorObjectNode({ obj, isSelected, onSelect }: {
             )}
         </Group>
     )
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison for memo - only re-render if props actually changed
+    if (prevProps.isSelected !== nextProps.isSelected) return false
+    if (prevProps.onSelect !== nextProps.onSelect) return false
+
+    const prevObj = prevProps.obj
+    const nextObj = nextProps.obj
+
+    // Compare all object properties that affect rendering
+    return (
+        prevObj.id === nextObj.id &&
+        prevObj.type === nextObj.type &&
+        prevObj.x === nextObj.x &&
+        prevObj.y === nextObj.y &&
+        prevObj.size === nextObj.size &&
+        prevObj.angle === nextObj.angle &&
+        prevObj.transparency === nextObj.transparency &&
+        prevObj.text === nextObj.text &&
+        prevObj.colorR === nextObj.colorR &&
+        prevObj.colorG === nextObj.colorG &&
+        prevObj.colorB === nextObj.colorB &&
+        prevObj.width === nextObj.width &&
+        prevObj.height === nextObj.height &&
+        prevObj.arcAngle === nextObj.arcAngle &&
+        prevObj.donutRadius === nextObj.donutRadius &&
+        prevObj.endX === nextObj.endX &&
+        prevObj.endY === nextObj.endY
+    )
+})
 
 // Background layer component
 function BackgroundLayer({ background }: { background: string }) {
@@ -496,6 +685,7 @@ function BackgroundLayer({ background }: { background: string }) {
                 width={BOARD_WIDTH}
                 height={BOARD_HEIGHT}
                 fill="#1a1a2e"
+                listening={false}
             />
         )
     }
@@ -507,6 +697,7 @@ function BackgroundLayer({ background }: { background: string }) {
             y={0}
             width={BOARD_WIDTH}
             height={BOARD_HEIGHT}
+            listening={false}
         />
     )
 }
@@ -547,8 +738,16 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
+                // Don't delete if user is typing in an input field
+                const activeElement = document.activeElement as HTMLElement
+                const tagName = activeElement?.tagName?.toUpperCase()
+                if (tagName === 'INPUT' || tagName === 'TEXTAREA' || activeElement?.isContentEditable) {
+                    return
+                }
+
                 const state = useEditorStore.getState()
                 if (state.selectedObjectId) {
+                    e.preventDefault() // Prevent browser back navigation on backspace
                     state.deleteObject(state.selectedObjectId)
                 }
             }
@@ -583,16 +782,28 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
                     <BackgroundLayer background={board.boardBackground} />
                 </Layer>
 
-                {/* Objects layer - render in reverse so first object is on top */}
+                {/* Objects layer - render in reverse so first object is on top, selected object renders last for click priority */}
                 <Layer>
-                    {[...board.objects].reverse().map((obj) => (
+                    {/* First render all non-selected objects */}
+                    {[...board.objects].reverse()
+                        .filter(obj => obj.id !== selectedObjectId)
+                        .map((obj) => (
+                            <EditorObjectNode
+                                key={obj.id}
+                                obj={obj}
+                                isSelected={false}
+                                onSelect={() => selectObject(obj.id)}
+                            />
+                        ))}
+                    {/* Then render selected object on top for click priority */}
+                    {selectedObjectId && board.objects.find(obj => obj.id === selectedObjectId) && (
                         <EditorObjectNode
-                            key={obj.id}
-                            obj={obj}
-                            isSelected={selectedObjectId === obj.id}
-                            onSelect={() => selectObject(obj.id)}
+                            key={selectedObjectId}
+                            obj={board.objects.find(obj => obj.id === selectedObjectId)!}
+                            isSelected={true}
+                            onSelect={() => selectObject(selectedObjectId)}
                         />
-                    ))}
+                    )}
                 </Layer>
             </Stage>
         </div>

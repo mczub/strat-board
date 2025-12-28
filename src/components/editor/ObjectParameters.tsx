@@ -108,7 +108,7 @@ function ParameterSlider({
     )
 }
 
-// Color picker component
+// Color picker component - shows all valid colors in 8x7 grid
 function ColorPicker({
     value,
     onChange
@@ -126,8 +126,8 @@ function ColorPicker({
     return (
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Color</label>
-            <div className="flex flex-wrap gap-1">
-                {VALID_COLORS.slice(0, 16).map((color, idx) => {
+            <div className="grid grid-cols-8 gap-0.5">
+                {VALID_COLORS.map((color, idx) => {
                     const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
                     if (!match) return null
                     const r = parseInt(match[1]), g = parseInt(match[2]), b = parseInt(match[3])
@@ -135,7 +135,7 @@ function ColorPicker({
                         <button
                             key={idx}
                             onClick={() => onChange(r, g, b)}
-                            className={`w-5 h-5 rounded border ${currentIdx === idx ? 'border-white ring-1 ring-white' : 'border-border'}`}
+                            className={`w-5 h-5 rounded-sm border ${currentIdx === idx ? 'border-white ring-1 ring-white' : 'border-border/50'}`}
                             style={{ backgroundColor: color }}
                             title={`Color ${idx + 1}`}
                         />

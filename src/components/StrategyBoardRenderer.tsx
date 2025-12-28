@@ -74,14 +74,14 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     bind_1: 30, bind_2: 30, bind_3: 30,
     ignore_1: 30, ignore_2: 30,
     square_marker: 30, circle_marker: 30, plus_marker: 30, triangle_marker: 30,
-    lockon_red: 30, lockon_blue: 30, lockon_purple: 30, lockon_green: 30,
+    lockon_red: 44, lockon_blue: 44, lockon_purple: 44, lockon_green: 44,
 
     // Role/job icons
-    tank: 28, tank_1: 28, tank_2: 28,
-    healer: 28, healer_1: 32, healer_2: 32,
-    dps: 28, dps_1: 32, dps_2: 32, dps_3: 32, dps_4: 32,
-    melee_dps: 28, ranged_dps: 28, physical_ranged_dps: 28, magical_ranged_dps: 28,
-    pure_healer: 28, barrier_healer: 28,
+    tank: 32, tank_1: 32, tank_2: 32,
+    healer: 32, healer_1: 32, healer_2: 32,
+    dps: 32, dps_1: 32, dps_2: 32, dps_3: 32, dps_4: 32,
+    melee_dps: 32, ranged_dps: 32, physical_ranged_dps: 32, magical_ranged_dps: 32,
+    pure_healer: 32, barrier_healer: 32,
 
     // Jobs
     paladin: 28, monk: 28, warrior: 28, dragoon: 28, bard: 28,
@@ -93,8 +93,8 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     archer: 28, conjurer: 28, thaumaturge: 28, arcanist: 28, rogue: 28,
 
     // Mechanics - larger
-    stack: 124, stack_multi: 124, line_stack: 124,
-    gaze: 124, proximity: 248, proximity_player: 124,
+    stack: 126, stack_multi: 124, line_stack: 124,
+    gaze: 124, proximity: 256, proximity_player: 124,
     tankbuster: 72, tower: 64, targeting: 72,
     radial_knockback: 260, linear_knockback: 270,
     moving_circle_aoe: 126,
@@ -106,7 +106,7 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     highlighted_circle: 48, highlighted_x: 48, highlighted_square: 48, highlighted_triangle: 48,
 
     // Buffs/Debuffs
-    enhancement: 30, enfeeblement: 30,
+    enhancement: 32, enfeeblement: 32,
 
     small_enemy: 64, medium_enemy: 64, large_enemy: 64,
 

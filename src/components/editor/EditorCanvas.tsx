@@ -18,6 +18,19 @@ const BOARD_HEIGHT = 384
 const clampX = (x: number) => Math.max(0, Math.min(BOARD_WIDTH, x))
 const clampY = (y: number) => Math.max(0, Math.min(BOARD_HEIGHT, y))
 
+// Get color for an object - prioritizes RGB properties (set by color picker) over hex string
+const getObjectColor = (obj: EditorObject, defaultColor = '#ffffff'): string => {
+    // Check RGB components first (these are set by the color picker)
+    if (obj.colorR !== undefined || obj.colorG !== undefined || obj.colorB !== undefined) {
+        return `rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`
+    }
+    // Fall back to hex color string (from imported boards)
+    if (obj.color && typeof obj.color === 'string') {
+        return obj.color
+    }
+    return defaultColor
+}
+
 // Background image paths
 const BG_PATHS: Record<string, string> = {
     checkered_circle: '/bg/checkered-circle-bg.webp',
@@ -102,6 +115,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         const tempText = new Konva.Text({
             text: textContent,
             fontSize: fontSize,
+            fontStyle: "bold"
         })
         const textWidth = tempText.width()
         tempText.destroy()
@@ -118,15 +132,14 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 <Text
                     text={textContent}
                     fontSize={fontSize}
-                    fill={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`}
+                    fill={getObjectColor(obj)}
                     stroke="#000"
                     strokeWidth={0.4}
                     align="center"
-                    paintOrder="stroke fill"
                     offsetX={textWidth / 2}
                     offsetY={textHeight / 2}
                     opacity={(100 - (obj.transparency ?? 0)) / 100}
-                    font-weight="bolder"
+                    fontStyle="bold"
                 />
                 {isSelected && (
                     <Rect
@@ -146,6 +159,12 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
 
     if (obj.type === 'circle_aoe') {
         const radius = size / 2
+        const opacity = (100 - (obj.transparency ?? 0)) / 100
+        // AoE gradient colors matching StrategyBoardRenderer
+        const aoeColor = [255, 161, 49] // #FFA131
+        const edgeColor = [254, 232, 116] // #FEE874
+        const strokeColor = '#FFDDD9'
+
         return (
             <Group
                 x={obj.x}
@@ -157,10 +176,23 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             >
                 <Circle
                     radius={radius}
-                    fill={`rgba(${obj.colorR ?? 255}, ${obj.colorG ?? 128}, ${obj.colorB ?? 0}, 0.5)`}
-                    stroke={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 128}, ${obj.colorB ?? 0})`}
+                    fillRadialGradientStartPoint={{ x: 0, y: 0 }}
+                    fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+                    fillRadialGradientStartRadius={0}
+                    fillRadialGradientEndRadius={radius}
+                    fillRadialGradientColorStops={[
+                        0, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.1)`,
+                        0.7, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.3)`,
+                        0.95, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.7)`,
+                        1, `rgba(${edgeColor[0]}, ${edgeColor[1]}, ${edgeColor[2]}, 1)`,
+                    ]}
+                    opacity={opacity}
+                />
+                <Circle
+                    radius={radius}
+                    stroke={strokeColor}
                     strokeWidth={2}
-                    opacity={(100 - (obj.transparency ?? 0)) / 100}
+                    opacity={opacity}
                 />
                 {isSelected && (
                     <Rect
@@ -195,25 +227,31 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         // Calculate bounding box with cone tip at origin (0,0)
         // Arc start point is at (0, -radius) - this is what stays FIXED
         let minX = 0, maxX = 0, minY = -radius, maxY = 0
+        let bboxMarginLeft = 2, bboxMarginTop = 8, bboxMarginRight = 8, bboxMarginBottom = 2
         const endX = radius * Math.cos(endAngleRad)
         const endY = radius * Math.sin(endAngleRad)
         minX = Math.min(0, endX)
         maxX = Math.max(0, endX)
         maxY = Math.max(0, endY)
 
-        if (endAngleRad > 0) { maxX = radius }
-        if (endAngleRad > Math.PI / 2) { maxY = radius }
+        if (endAngleRad > 0) { maxX = radius; bboxMarginBottom = 8 }
+        if (endAngleRad > Math.PI / 2) { maxY = radius; bboxMarginLeft = 8 }
         if (endAngleRad > Math.PI) { minX = -radius }
 
-        const bboxCenterX = (minX + maxX) / 2
-        const bboxCenterY = (minY + maxY) / 2
-        const bboxWidth = maxX - minX
-        const bboxHeight = maxY - minY
+        const bboxCenterX = (minX + maxX - bboxMarginLeft + bboxMarginRight) / 2
+        const bboxCenterY = (minY + maxY - bboxMarginTop + bboxMarginBottom) / 2
+        const bboxWidth = maxX - minX + bboxMarginLeft + bboxMarginRight
+        const bboxHeight = maxY - minY + bboxMarginTop + bboxMarginBottom
 
         // The arc START point (0, -radius) should stay at a fixed screen position
         // x,y is bounding box center, so we offset from there to the cone tip
         const tipOffsetX = -bboxCenterX
         const tipOffsetY = -bboxCenterY
+
+        // AoE gradient colors matching StrategyBoardRenderer
+        const aoeColor = 'rgba(255, 161, 49' // #FFA131
+        const edgeColor = 'rgba(254, 232, 116, 1)' // #FEE874
+        const strokeColor = '#FFDDD9'
 
         return (
             <Group
@@ -225,19 +263,45 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 onClick={onSelect}
                 onTap={onSelect}
             >
+                {/* Gradient fill shape */}
                 <Shape
-                    sceneFunc={(context, shape) => {
+                    sceneFunc={(context) => {
+                        const ctx = context._context as CanvasRenderingContext2D
                         const startAngle = -Math.PI / 2
                         const endAngle = startAngle + arcAngleRad
+
+                        // Create radial gradient from tip
+                        const gradient = ctx.createRadialGradient(
+                            tipOffsetX, tipOffsetY, 0,
+                            tipOffsetX, tipOffsetY, radius
+                        )
+                        gradient.addColorStop(0, `${aoeColor}, 0.1)`)
+                        gradient.addColorStop(0.7, `${aoeColor}, 0.3)`)
+                        gradient.addColorStop(0.95, `${aoeColor}, 0.7)`)
+                        gradient.addColorStop(1, edgeColor)
 
                         context.beginPath()
                         context.moveTo(tipOffsetX, tipOffsetY)
                         context.arc(tipOffsetX, tipOffsetY, radius, startAngle, endAngle, false)
                         context.closePath()
-                        context.fillStrokeShape(shape)
+
+                        ctx.fillStyle = gradient
+                        ctx.fill()
                     }}
-                    fill={`rgba(255, 161, 49, 0.5)`}
-                    stroke="#FEE874"
+                    opacity={opacity}
+                />
+                {/* Stroke outline - separate shape for cleaner rendering */}
+                <Shape
+                    sceneFunc={(context, shape) => {
+                        const startAngle = -Math.PI / 2
+                        const endAngle = startAngle + arcAngleRad
+
+                        // Draw just the arc stroke (outer edge)
+                        context.beginPath()
+                        context.arc(tipOffsetX, tipOffsetY, radius, startAngle, endAngle, false)
+                        context.strokeShape(shape)
+                    }}
+                    stroke={strokeColor}
                     strokeWidth={2}
                     opacity={opacity}
                 />
@@ -400,8 +464,8 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     height={height}
                     offsetX={width / 2}
                     offsetY={height / 2}
-                    fill={`rgba(${obj.colorR ?? 255}, ${obj.colorG ?? 128}, ${obj.colorB ?? 0}, 0.5)`}
-                    stroke={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 128}, ${obj.colorB ?? 0})`}
+                    fill={getObjectColor(obj, '#ff8000')}
+                    stroke={getObjectColor(obj, '#ff8000')}
                     strokeWidth={2}
                     opacity={(100 - (obj.transparency ?? 0)) / 100}
                 />
@@ -535,7 +599,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 <Line
                     ref={lineRef}
                     points={[startX, startY, endX, endY]}
-                    stroke={`rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`}
+                    stroke={getObjectColor(obj)}
                     strokeWidth={strokeWidth}
                     opacity={opacity}
                     hitStrokeWidth={Math.max(strokeWidth, 10)} // Easier to click
@@ -660,6 +724,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         prevObj.angle === nextObj.angle &&
         prevObj.transparency === nextObj.transparency &&
         prevObj.text === nextObj.text &&
+        prevObj.color === nextObj.color &&
         prevObj.colorR === nextObj.colorR &&
         prevObj.colorG === nextObj.colorG &&
         prevObj.colorB === nextObj.colorB &&

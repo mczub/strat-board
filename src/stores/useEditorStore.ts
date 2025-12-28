@@ -204,12 +204,39 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             }
 
             const decoded = decode(fullCode)
+            console.log(decoded)
 
-            // Convert to EditorObjects with IDs
-            const objects: EditorObject[] = decoded.objects.map((obj) => ({
-                ...obj,
-                id: nanoid(8),
-            }))
+            // Helper to parse hex color to RGB
+            const parseHexColor = (hex: string): { r: number, g: number, b: number } | null => {
+                const match = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
+                if (!match) return null
+                return {
+                    r: parseInt(match[1], 16),
+                    g: parseInt(match[2], 16),
+                    b: parseInt(match[3], 16)
+                }
+            }
+
+            // Convert to EditorObjects with IDs, and convert hex color to RGB
+            const objects: EditorObject[] = decoded.objects.map((obj) => {
+                const editorObj: EditorObject = {
+                    ...obj,
+                    id: nanoid(8),
+                }
+
+                // If object has hex color string but no RGB components, convert it
+                if (obj.color && typeof obj.color === 'string' &&
+                    obj.colorR === undefined && obj.colorG === undefined && obj.colorB === undefined) {
+                    const rgb = parseHexColor(obj.color)
+                    if (rgb) {
+                        editorObj.colorR = rgb.r
+                        editorObj.colorG = rgb.g
+                        editorObj.colorB = rgb.b
+                    }
+                }
+
+                return editorObj
+            })
 
             set({
                 board: {

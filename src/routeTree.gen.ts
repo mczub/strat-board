@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ImportRouteImport } from './routes/import'
+import { Route as EditorRouteImport } from './routes/editor'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as BRouteImport } from './routes/b'
 import { Route as CodeRouteImport } from './routes/$code'
@@ -22,6 +23,11 @@ import { Route as ApiBundlesRouteImport } from './routes/api.bundles'
 const ImportRoute = ImportRouteImport.update({
   id: '/import',
   path: '/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorRoute = EditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/$code': typeof CodeRoute
   '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
+  '/editor': typeof EditorRoute
   '/import': typeof ImportRoute
   '/api/bundles': typeof ApiBundlesRoute
   '/api/og': typeof ApiOgRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/$code': typeof CodeRoute
   '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
+  '/editor': typeof EditorRoute
   '/import': typeof ImportRoute
   '/api/bundles': typeof ApiBundlesRoute
   '/api/og': typeof ApiOgRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/$code': typeof CodeRoute
   '/b': typeof BRouteWithChildren
   '/create': typeof CreateRoute
+  '/editor': typeof EditorRoute
   '/import': typeof ImportRoute
   '/api/bundles': typeof ApiBundlesRoute
   '/api/og': typeof ApiOgRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/$code'
     | '/b'
     | '/create'
+    | '/editor'
     | '/import'
     | '/api/bundles'
     | '/api/og'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/$code'
     | '/b'
     | '/create'
+    | '/editor'
     | '/import'
     | '/api/bundles'
     | '/api/og'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/$code'
     | '/b'
     | '/create'
+    | '/editor'
     | '/import'
     | '/api/bundles'
     | '/api/og'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   CodeRoute: typeof CodeRoute
   BRoute: typeof BRouteWithChildren
   CreateRoute: typeof CreateRoute
+  EditorRoute: typeof EditorRoute
   ImportRoute: typeof ImportRoute
   ApiBundlesRoute: typeof ApiBundlesRoute
   ApiOgRoute: typeof ApiOgRoute
@@ -153,6 +166,13 @@ declare module '@tanstack/react-router' {
       path: '/import'
       fullPath: '/import'
       preLoaderRoute: typeof ImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor': {
+      id: '/editor'
+      path: '/editor'
+      fullPath: '/editor'
+      preLoaderRoute: typeof EditorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -229,6 +249,7 @@ const rootRouteChildren: RootRouteChildren = {
   CodeRoute: CodeRoute,
   BRoute: BRouteWithChildren,
   CreateRoute: CreateRoute,
+  EditorRoute: EditorRoute,
   ImportRoute: ImportRoute,
   ApiBundlesRoute: ApiBundlesRoute,
   ApiOgRoute: ApiOgRoute,

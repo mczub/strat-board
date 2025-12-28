@@ -4,7 +4,14 @@
   "route": "board.wtfdig.info/*",
   "env": {
     "staging": {
-      "workers_dev": true
+      "name": "staging-strat-board",
+      "workers_dev": true,
+      "kv_namespaces": [
+        {
+          "binding": "BUNDLE_STORE",
+          "id": "ba88d5812bb94f7db766519c2a081210"
+        }
+      ]
     }
   },
   "compatibility_date": "2025-09-02",

@@ -99,6 +99,7 @@ function ViewBoardPage() {
         // Handle both with and without brackets
         const fullCode = makeFullCode(decodedCode)
         const result = decode(fullCode)
+        console.log(result)
         board = result
     } catch (e) {
         error = e instanceof Error ? e.message : 'Failed to decode strategy board'

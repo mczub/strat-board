@@ -97,7 +97,7 @@ const ICON_SIZE_DEFAULTS: Record<string, number> = {
     gaze: 124, proximity: 248, proximity_player: 124,
     tankbuster: 72, tower: 64, targeting: 72,
     radial_knockback: 260, linear_knockback: 270,
-    moving_circle_aoe: 64,
+    moving_circle_aoe: 126,
     '1person_aoe': 64, '2person_aoe': 64, '3person_aoe': 64, '4person_aoe': 64,
 
     // Shapes

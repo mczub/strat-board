@@ -5,6 +5,7 @@
  * These server functions run on Cloudflare Workers and have access to KV bindings
  */
 
+import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { nanoid } from 'nanoid'
 import { serializeBundle, deserializeBundle } from '@/lib/bundleUtils'
@@ -91,4 +92,55 @@ export const getBundle = createServerFn({
 
     const codes = deserializeBundle(value)
     return { codes }
+})
+
+/**
+ * Public API Route for getting bundle codes as comma-separated string
+ * URL: /api/v1/bundles?code=[shareCode]
+ */
+export const Route = createFileRoute('/api/bundles')({
+    server: {
+        handlers: {
+            GET: async ({ request }) => {
+                const url = new URL(request.url)
+                const shareCode = url.searchParams.get('code')
+
+                if (!shareCode || shareCode.length !== SHARE_CODE_LENGTH) {
+                    return new Response('Invalid or missing share code', { status: 400 })
+                }
+
+                try {
+                    // Access KV through env
+                    // @ts-expect-error - env.BUNDLE_STORE is set by wrangler
+                    const kv = env.BUNDLE_STORE
+                    if (!kv) {
+                        return new Response('KV store not available', { status: 500 })
+                    }
+
+                    const value = await kv.get(shareCode)
+
+                    if (!value) {
+                        return new Response('Bundle not found', { status: 404 })
+                    }
+
+                    const codes = deserializeBundle(value)
+                    const csvCodes = codes.map(c => `[${c}]`).join(',')
+
+                    return new Response(csvCodes, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'text/plain',
+                            'Cache-Control': 'public, max-age=3600',
+                        },
+                    })
+                } catch (e) {
+                    console.error('Bundle API error:', e)
+                    return new Response(`Failed to fetch bundle: ${e instanceof Error ? e.message : String(e)}`, {
+                        status: 500,
+                        headers: { 'Content-Type': 'text/plain' }
+                    })
+                }
+            },
+        },
+    },
 })

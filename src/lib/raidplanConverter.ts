@@ -6,6 +6,7 @@
  */
 
 import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
+import { findClosestColor } from './utils'
 
 // ============================================================================
 // Raidplan Type Definitions
@@ -28,7 +29,7 @@ interface RaidplanMeta {
 }
 
 interface RaidplanNode {
-    type: 'arena' | 'rect' | 'ability' | 'itext' | 'arrow' | 'path' | 'marker' | 'circle' | 'ellipse'
+    type: 'arena' | 'rect' | 'ability' | 'itext' | 'arrow' | 'path' | 'marker' | 'waypoint' | 'circle' | 'ellipse' | 'triangle'
     attr: {
         // Text
         text?: string
@@ -56,6 +57,8 @@ interface RaidplanNode {
         gridX?: number
         gridY?: number
         shape?: string
+
+        wayId?: string
     }
     meta: RaidplanMeta
 }
@@ -131,14 +134,18 @@ const ABILITY_ID_MAP: Record<string, AssetMapping> = {
     'ff-circle': { name: 'donut_circle', scale: 0.14 },
     'ff-wedge': { name: 'fan_aoe_wedge', scale: 0.42 },
     'ff-pie': { name: 'fan_aoe_pie', scale: 0.38 },
-    'ff-donut': { name: 'donut' },
-    'ff-stack': { name: 'stack' },
+    'ff-donut': { name: 'donut', scale: 0.14 },
+    'ff-stack': { name: 'stack', scale: 0.5 },
     'ff-gaze': { name: 'gaze' },
     'ff-tankbuster': { name: 'tankbuster' },
     'ff-proximity': { name: 'proximity' },
     'ff-area-prox': { name: 'tower', scale: 1.2 },
     'ff-line-stack': { name: 'line_stack' },
     'ff-boss': { name: 'large_enemy' },
+    'ff-square': { name: 'line_aoe' },
+    'ff-push': { name: 'linear_knockback', scale: 0.32 },
+    'ff-knock': { name: 'radial_knockback', scale: 0.32 },
+    'ff-stackline': { name: 'line_stack', scale: 0.6 }
 }
 
 // Map raidplan FFXIV asset filenames to xiv-strat-board types
@@ -209,6 +216,10 @@ const FFXIV_ASSET_MAP: Record<string, AssetMapping> = {
     'mark_link3.png': { name: 'bind_3', scale: 0.8 },
     'mark_stop1.png': { name: 'ignore_1', scale: 0.8 },
     'mark_stop2.png': { name: 'ignore_2', scale: 0.8 },
+    'mark_shape1.png': { name: 'circle_marker', scale: 0.7 },
+    'mark_shape2.png': { name: 'plus_marker', scale: 0.7 },
+    'mark_shape3.png': { name: 'square_marker', scale: 0.7 },
+    'mark_shape4.png': { name: 'triangle_marker', scale: 0.7 },
 
     // Mechanics
     'stack.png': { name: 'stack' },
@@ -321,6 +332,11 @@ function convertNode(
         return []
     }
 
+    if (node.type === 'triangle') {
+        node.type = 'ability'
+        node.attr.abilityId = 'ff-wedge'
+    }
+
     // Text (itext) - split on newlines
     if (node.type === 'itext') {
         if (!node.attr.text?.trim()) return []
@@ -366,6 +382,23 @@ function convertNode(
         return []
     }
 
+    // FFXIV markers (icons)
+    if (node.type === 'waypoint') {
+        const waymarkName = `waymark_${node.attr.wayId}`
+
+        const scale = node.meta.scale.x * 100
+        return [{
+            type: waymarkName,
+            x,
+            y,
+            size: Math.round(scale),
+            angle,
+        }]
+
+        // Unknown FFXIV asset - skip for now
+        return []
+    }
+
     // Ability (AoE indicators)
     if (node.type === 'ability' && node.attr.abilityId) {
         const mappedType = ABILITY_ID_MAP[node.attr.abilityId]
@@ -378,7 +411,7 @@ function convertNode(
                 type: mappedType.name,
                 x,
                 y,
-                size: Math.round(scale * (mappedType.scale ?? 1)),
+                size: Math.max(Math.round(scale * (mappedType.scale ?? 1)), 50),
                 angle,
             }
 
@@ -388,11 +421,29 @@ function convertNode(
                 obj.colorB = rgb.b
             }
 
+            if (mappedType.name === 'linear_knockback') {
+                obj.angle = (obj.angle ?? 0) + 90
+            }
+
+            if (mappedType.name === 'line_stack') {
+                obj.displayCount = 1
+            }
+
             if (mappedType.name === 'donut_circle') {
                 obj.type = 'donut'
                 obj.arcAngle = 360
                 obj.donutRadius = 0
-                obj.size = Math.round(scale / 7)
+                obj.size = Math.round(scale * (mappedType.scale ?? 1))
+                obj.colorR = undefined
+                obj.colorG = undefined
+                obj.colorB = undefined
+            }
+
+            if (mappedType.name === 'donut') {
+                obj.type = 'donut'
+                obj.arcAngle = 360
+                obj.donutRadius = 120
+                obj.size = Math.round(scale * (mappedType.scale ?? 1))
                 obj.colorR = undefined
                 obj.colorG = undefined
                 obj.colorB = undefined
@@ -496,6 +547,34 @@ function convertNode(
                 obj.colorR = undefined
                 obj.colorG = undefined
                 obj.colorB = undefined
+            }
+
+            if (mappedType.name === 'line_aoe') {
+                const width = node.meta.size.w * node.meta.scale.x * transform.scaleX
+                const height = node.meta.size.h * node.meta.scale.y * transform.scaleY
+                const rgb = node.attr.colorA ? hexToRgb(node.attr.colorA) : null
+
+                const obj: StrategyObject = {
+                    type: 'line_aoe',
+                    x,
+                    y,
+                    width: Math.round(width),
+                    height: Math.round(height),
+                    angle,
+                }
+
+                if (rgb) {
+                    const closestColor = findClosestColor(rgb);
+                    obj.colorR = closestColor.rgb[0]
+                    obj.colorG = closestColor.rgb[1]
+                    obj.colorB = closestColor.rgb[2]
+                }
+
+                if (node.attr.opacity !== undefined) {
+                    obj.transparency = Math.round((1 - node.attr.opacity) * 100)
+                }
+
+                return [obj]
             }
 
 

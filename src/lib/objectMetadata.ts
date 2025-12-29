@@ -37,7 +37,6 @@ const SIZE_PARAM_50: ParameterConfig = { min: 50, max: 200, step: 1, default: 10
 const ANGLE_PARAM: ParameterConfig = { min: -180, max: 180, step: 1, default: 0 }
 const TRANSPARENCY_PARAM: ParameterConfig = { min: 0, max: 100, step: 1, default: 0 }
 const COLOR_PARAM: ParameterConfig = {}
-const TEXT_PARAM: ParameterConfig = { default: 'Text' }
 
 // Object type to metadata mapping
 export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
@@ -133,7 +132,7 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             size: { min: 10, max: 200, step: 1, default: 100, label: 'Outer Radius' },
             donutRadius: { min: 0, max: 200, step: 1, default: 50, label: 'Inner Radius' },
             arcAngle: { min: 10, max: 360, step: 10, default: 360, label: 'Arc Angle' },
-            angle: { ...ANGLE_PARAM, label: 'Rotation' },
+            angle: { ...ANGLE_PARAM, label: 'Angle' },
             transparency: TRANSPARENCY_PARAM,
             color: COLOR_PARAM,
         }

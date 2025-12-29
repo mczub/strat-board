@@ -45,6 +45,27 @@ const BG_PATHS: Record<string, string> = {
 // Get base size for an object type - uses OBJECT_METADATA as single source of truth
 const getBaseSize = (type: string): number => OBJECT_METADATA[type]?.baseSize ?? 32
 
+// Check if object type supports resize (has size parameter)
+// Excludes: line, line_aoe (special cases), text (no resize)
+const supportsResize = (type: string): boolean => {
+    if (type === 'line' || type === 'line_aoe' || type === 'text') return false
+    const metadata = OBJECT_METADATA[type]
+    return metadata?.parameters?.size !== undefined
+}
+
+const minSize = (type: string): number => {
+    const metadata = OBJECT_METADATA[type]
+    return metadata?.parameters?.size?.min ?? 10
+}
+
+// Check if object type supports rotation (has angle parameter)
+// Excludes: line (has own handles), text (no rotation)
+const supportsRotation = (type: string): boolean => {
+    if (type === 'line' || type === 'text') return false
+    const metadata = OBJECT_METADATA[type]
+    return metadata?.parameters?.angle !== undefined
+}
+
 // DPS marker remapping: Unified (dps_1-4) <-> Separate (melee_1-2, ranged_dps_1-2)
 const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
     'dps_1': 'melee_1',
@@ -101,6 +122,10 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         useEditorStore.getState().moveObject(id, x, y)
     }, [])
 
+    const updateObject = useCallback((id: string, updates: Partial<EditorObject>) => {
+        useEditorStore.getState().updateObject(id, updates)
+    }, [])
+
     // Get display type - remaps DPS icons based on Unified/Separate setting
     const displayType = getDisplayType(obj.type, useSeparateDps)
     const iconSrc = `/icons/${displayType}.png`
@@ -119,6 +144,202 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         e.target.x(x)
         e.target.y(y)
         moveObject(obj.id, x, y)
+    }
+
+    // Constrain drag to canvas bounds in real-time
+    // dragBoundFunc receives pos in screen pixels, but we need to clamp in canvas coords
+    // Note: dragBoundFunc uses 'this' to refer to the node, so we need a regular function
+    function dragBoundFunc(this: Konva.Node, pos: { x: number; y: number }) {
+        const stage = this.getStage()
+        const scale = stage?.scaleX() || 1
+        // Convert from screen pixels to canvas coords, clamp, then convert back
+        return {
+            x: clampX(pos.x / scale) * scale,
+            y: clampY(pos.y / scale) * scale
+        }
+    }
+
+    // Helper to render selection box + resize/rotation handles
+    // boundingWidth, boundingHeight: the size of the bounding box around object center
+    const renderSelectionHandles = (boundingWidth: number, boundingHeight?: number) => {
+        const halfWidth = boundingWidth / 2 + 2 // Add 2px margin
+        const halfHeight = (boundingHeight ?? boundingWidth) / 2 + 2
+
+        return (
+            <>
+                {/* Selection box */}
+                <Rect
+                    x={-halfWidth}
+                    y={-halfHeight}
+                    width={halfWidth * 2}
+                    height={halfHeight * 2}
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    fill="transparent"
+                    listening={false}
+                />
+
+                {/* Center crosshair to show anchor point */}
+                <Line
+                    points={[-3, 0, 3, 0]}
+                    stroke="#fff"
+                    strokeWidth={1}
+                    listening={false}
+                />
+                <Line
+                    points={[0, -3, 0, 3]}
+                    stroke="#fff"
+                    strokeWidth={1}
+                    listening={false}
+                />
+
+                {/* Resize handles - corner circles */}
+                {supportsResize(obj.type) && (() => {
+                    const handleRadius = 4
+                    const corners = [
+                        { x: -halfWidth, y: -halfHeight }, // top-left
+                        { x: halfWidth, y: -halfHeight },  // top-right
+                        { x: halfWidth, y: halfHeight },   // bottom-right
+                        { x: -halfWidth, y: halfHeight },  // bottom-left
+                    ]
+
+                    const handleResizeDrag = (e: Konva.KonvaEventObject<DragEvent>, cornerIndex: number) => {
+                        const stage = e.target.getStage()
+                        if (!stage) return
+
+                        const pointer = stage.getPointerPosition()
+                        if (!pointer) return
+
+                        const group = e.target.getParent()
+                        if (!group) return
+                        const groupPos = group.getAbsolutePosition()
+
+                        // Get stage scale to convert from screen pixels to canvas coordinates
+                        const stageScale = stage.scaleX() || 1
+
+                        // Distance in screen pixels
+                        const dxScreen = pointer.x - groupPos.x
+                        const dyScreen = pointer.y - groupPos.y
+                        const distanceScreen = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen)
+
+                        // Convert to canvas coordinates
+                        const distance = distanceScreen / stageScale
+
+                        // The corner is at distance = size/2 + 2 (the 2 is fixed margin)
+                        // So new size = 2 * (distance - 2)
+                        // size percent = 100 * newSize / baseSize = 200 * (distance - 2) / baseSize
+                        const newSizePercent = Math.max(minSize(obj.type), Math.min(200, Math.round(200 * (distance - 2) / baseSize)))
+
+                        updateObject(obj.id, { size: newSizePercent })
+
+                        e.target.x(corners[cornerIndex].x)
+                        e.target.y(corners[cornerIndex].y)
+                    }
+
+                    return corners.map((corner, idx) => (
+                        <Circle
+                            key={`resize-${idx}`}
+                            x={corner.x}
+                            y={corner.y}
+                            radius={handleRadius}
+                            fill="#fff"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragMove={(e) => handleResizeDrag(e, idx)}
+                            onDragEnd={(e) => { e.cancelBubble = true }}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                            onMouseDown={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grabbing'
+                            }}
+                            onMouseUp={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                        />
+                    ))
+                })()}
+
+                {/* Rotation handle - circle above object with connecting line */}
+                {supportsRotation(obj.type) && (() => {
+                    const rotateDistance = halfHeight + 23
+                    const handleRadius = 4
+
+                    const handleRotateDrag = (e: Konva.KonvaEventObject<DragEvent>) => {
+                        const stage = e.target.getStage()
+                        if (!stage) return
+
+                        const pointer = stage.getPointerPosition()
+                        if (!pointer) return
+
+                        const group = e.target.getParent()
+                        if (!group) return
+                        const groupPos = group.getAbsolutePosition()
+
+                        const dx = pointer.x - groupPos.x
+                        const dy = pointer.y - groupPos.y
+                        let angle = Math.atan2(dx, -dy) * (180 / Math.PI)
+
+                        angle = Math.round(angle)
+                        if (angle > 180) angle -= 360
+                        if (angle < -180) angle += 360
+
+                        updateObject(obj.id, { angle })
+
+                        e.target.x(0)
+                        e.target.y(-rotateDistance)
+                    }
+
+                    return (
+                        <>
+                            <Line
+                                points={[0, -halfHeight, 0, -rotateDistance + handleRadius]}
+                                stroke="#3b82f6"
+                                strokeWidth={1}
+                                listening={false}
+                            />
+                            <Circle
+                                x={0}
+                                y={-rotateDistance}
+                                radius={handleRadius}
+                                fill="#fff"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                draggable
+                                onDragStart={(e) => { e.cancelBubble = true }}
+                                onDragMove={handleRotateDrag}
+                                onDragEnd={(e) => { e.cancelBubble = true }}
+                                onMouseEnter={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'grab'
+                                }}
+                                onMouseLeave={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'default'
+                                }}
+                                onMouseDown={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'grabbing'
+                                }}
+                                onMouseUp={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'grab'
+                                }}
+                            />
+                        </>
+                    )
+                })()}
+            </>
+        )
     }
 
     // Render based on type
@@ -141,6 +362,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 x={obj.x}
                 y={obj.y}
                 draggable
+                dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
@@ -186,6 +408,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 x={obj.x}
                 y={obj.y}
                 draggable
+                dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
@@ -210,18 +433,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     strokeWidth={2}
                     opacity={opacity}
                 />
-                {isSelected && (
-                    <Rect
-                        x={-radius - 2}
-                        y={-radius - 2}
-                        width={radius * 2 + 4}
-                        height={radius * 2 + 4}
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        fill="transparent"
-                        listening={false}
-                    />
-                )}
+                {isSelected && renderSelectionHandles(radius * 2)}
             </Group>
         )
     }
@@ -275,10 +487,19 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 y={obj.y}
                 rotation={rotation}
                 draggable
+                dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
+                {/* Invisible hit area for click detection (custom sceneFunc shapes don't auto-detect hits) */}
+                <Rect
+                    x={-bboxWidth / 2}
+                    y={-bboxHeight / 2}
+                    width={bboxWidth}
+                    height={bboxHeight}
+                    fill="transparent"
+                />
                 {/* Gradient fill shape */}
                 <Shape
                     sceneFunc={(context) => {
@@ -321,18 +542,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     strokeWidth={2}
                     opacity={opacity}
                 />
-                {isSelected && (
-                    <Rect
-                        x={-bboxWidth / 2 - 2}
-                        y={-bboxHeight / 2 - 2}
-                        width={bboxWidth + 4}
-                        height={bboxHeight + 4}
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        fill="transparent"
-                        listening={false}
-                    />
-                )}
+                {isSelected && renderSelectionHandles(bboxWidth, bboxHeight)}
             </Group>
         )
     }
@@ -354,6 +564,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     y={obj.y}
                     rotation={rotation}
                     draggable
+                    dragBoundFunc={dragBoundFunc}
                     onDragEnd={handleDragEnd}
                     onClick={onSelect}
                     onTap={onSelect}
@@ -366,18 +577,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                         strokeWidth={2}
                         opacity={opacity}
                     />
-                    {isSelected && (
-                        <Rect
-                            x={-outerRadius - 2}
-                            y={-outerRadius - 2}
-                            width={outerRadius * 2 + 4}
-                            height={outerRadius * 2 + 4}
-                            stroke="#3b82f6"
-                            strokeWidth={2}
-                            fill="transparent"
-                            listening={false}
-                        />
-                    )}
+                    {isSelected && renderSelectionHandles(outerRadius * 2)}
                 </Group>
             )
         }
@@ -418,10 +618,19 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 y={obj.y}
                 rotation={rotation}
                 draggable
+                dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
+                {/* Invisible hit area for click detection (custom sceneFunc shapes don't auto-detect hits) */}
+                <Rect
+                    x={-bboxWidth / 2}
+                    y={-bboxHeight / 2}
+                    width={bboxWidth}
+                    height={bboxHeight}
+                    fill="transparent"
+                />
                 <Shape
                     sceneFunc={(context, shape) => {
                         const startAngle = -Math.PI / 2
@@ -445,18 +654,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     strokeWidth={2}
                     opacity={opacity}
                 />
-                {isSelected && (
-                    <Rect
-                        x={-bboxWidth / 2 - 2}
-                        y={-bboxHeight / 2 - 2}
-                        width={bboxWidth + 4}
-                        height={bboxHeight + 4}
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        fill="transparent"
-                        listening={false}
-                    />
-                )}
+                {isSelected && renderSelectionHandles(bboxWidth, bboxHeight)}
             </Group>
         )
     }
@@ -471,6 +669,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 y={obj.y}
                 rotation={rotation}
                 draggable
+                dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
@@ -683,6 +882,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 stroke={isSelected ? '#3b82f6' : '#666'}
                 strokeWidth={isSelected ? 2 : 1}
                 draggable
+                dragBoundFunc={(pos) => ({ x: clampX(pos.x + size / 2) - size / 2, y: clampY(pos.y + size / 2) - size / 2 })}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
@@ -695,6 +895,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             x={obj.x}
             y={obj.y}
             draggable
+            dragBoundFunc={dragBoundFunc}
             onDragEnd={handleDragEnd}
             onClick={onSelect}
             onTap={onSelect}
@@ -708,18 +909,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 offsetY={size / 2}
                 opacity={(100 - (obj.transparency ?? 0)) / 100}
             />
-            {isSelected && (
-                <Rect
-                    x={-size / 2 - 2}
-                    y={-size / 2 - 2}
-                    width={size + 4}
-                    height={size + 4}
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    fill="transparent"
-                    listening={false}
-                />
-            )}
+            {isSelected && renderSelectionHandles(size)}
         </Group>
     )
 }, (prevProps, nextProps) => {

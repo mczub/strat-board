@@ -6,6 +6,7 @@
     "staging": {
       "name": "staging-strat-board",
       "workers_dev": true,
+      "route": "staging-strat-board.mczub.workers.dev/*",
       "kv_namespaces": [
         {
           "binding": "BUNDLE_STORE",

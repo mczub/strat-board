@@ -6,7 +6,7 @@
 
 import { Stage, Layer, Image as KonvaImage, Rect, Circle, Text, Line, Group, Shape, Ring } from 'react-konva'
 import { useEditorStore, type EditorObject } from '@/stores/useEditorStore'
-import { useEffect, useRef, useState, memo, useCallback } from 'react'
+import React, { useEffect, useRef, useState, memo, useCallback } from 'react'
 import Konva from 'konva'
 import { OBJECT_METADATA } from '@/lib/objectMetadata'
 
@@ -204,36 +204,44 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     ]
 
                     const handleResizeDrag = (e: Konva.KonvaEventObject<DragEvent>, cornerIndex: number) => {
-                        const stage = e.target.getStage()
-                        if (!stage) return
+                        // The handle's x/y are already in the Group's local coordinate system
+                        const handleX = e.target.x()
+                        const handleY = e.target.y()
 
-                        const pointer = stage.getPointerPosition()
-                        if (!pointer) return
+                        // Current object's size percent
+                        const currentSizePercent = obj.size ?? 100
 
-                        const group = e.target.getParent()
-                        if (!group) return
-                        const groupPos = group.getAbsolutePosition()
+                        // The original bounding box dimensions (without margin) at current size
+                        const originalHalfWidth = halfWidth - 2
+                        const originalHalfHeight = halfHeight - 2
+                        const originalMaxHalf = Math.max(originalHalfWidth, originalHalfHeight)
 
-                        // Get stage scale to convert from screen pixels to canvas coordinates
-                        const stageScale = stage.scaleX() || 1
+                        // The handle was dragged to (handleX, handleY)
+                        // New max dimension = max(|handleX|, |handleY|) - 2 (margin)
+                        const newMaxHalf = Math.max(Math.abs(handleX), Math.abs(handleY)) - 2
 
-                        // Distance in screen pixels
-                        const dxScreen = pointer.x - groupPos.x
-                        const dyScreen = pointer.y - groupPos.y
-                        const distanceScreen = Math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen)
-
-                        // Convert to canvas coordinates
-                        const distance = distanceScreen / stageScale
-
-                        // The corner is at distance = size/2 + 2 (the 2 is fixed margin)
-                        // So new size = 2 * (distance - 2)
-                        // size percent = 100 * newSize / baseSize = 200 * (distance - 2) / baseSize
-                        const newSizePercent = Math.max(minSize(obj.type), Math.min(200, Math.round(200 * (distance - 2) / baseSize)))
+                        // Scale factor: how much bigger/smaller is the new size compared to current?
+                        // newMaxHalf / originalMaxHalf = newScale / currentScale
+                        // newScale = currentScale * (newMaxHalf / originalMaxHalf)
+                        const scaleFactor = newMaxHalf / originalMaxHalf
+                        const newSizePercent = Math.max(minSize(obj.type), Math.min(200, Math.round(currentSizePercent * scaleFactor)))
 
                         updateObject(obj.id, { size: newSizePercent })
 
-                        e.target.x(corners[cornerIndex].x)
-                        e.target.y(corners[cornerIndex].y)
+                        // Calculate new corner positions by scaling from current position
+                        const actualScaleFactor = newSizePercent / currentSizePercent
+                        const newHalfWidth = originalHalfWidth * actualScaleFactor + 2
+                        const newHalfHeight = originalHalfHeight * actualScaleFactor + 2
+
+                        const signs = [
+                            { x: -1, y: -1 }, // top-left
+                            { x: 1, y: -1 },  // top-right
+                            { x: 1, y: 1 },   // bottom-right
+                            { x: -1, y: 1 },  // bottom-left
+                        ]
+
+                        e.target.x(signs[cornerIndex].x * newHalfWidth)
+                        e.target.y(signs[cornerIndex].y * newHalfHeight)
                     }
 
                     return corners.map((corner, idx) => (
@@ -663,6 +671,91 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         const width = obj.width ?? 50
         const height = obj.height ?? 100
         const rotation = obj.angle ?? 0
+        const handleRadius = 4
+        const handleOffset = 2
+
+        // Handle width resize (left/right edges)
+        const handleWidthDrag = (e: Konva.KonvaEventObject<DragEvent>, side: 'left' | 'right') => {
+            const stage = e.target.getStage()
+            if (!stage) return
+
+            // Get distance from center, subtracting handleOffset
+            const handlePos = Math.abs(side === 'right' ? e.target.x() : -e.target.x())
+            const newHalfWidth = handlePos - handleOffset
+            const newWidth = Math.max(10, Math.min(512, Math.round(newHalfWidth * 2)))
+
+            updateObject(obj.id, { width: newWidth })
+
+            // Reset handle position based on new width (adding handleOffset back)
+            e.target.x(side === 'right' ? newWidth / 2 + handleOffset : -newWidth / 2 - handleOffset)
+            e.target.y(0)
+        }
+
+        // Handle height resize (top/bottom edges)  
+        const handleHeightDrag = (e: Konva.KonvaEventObject<DragEvent>, side: 'top' | 'bottom') => {
+            const stage = e.target.getStage()
+            if (!stage) return
+
+            // Get distance from center, subtracting handleOffset
+            const handlePos = Math.abs(side === 'bottom' ? e.target.y() : -e.target.y())
+            const newHalfHeight = handlePos - handleOffset
+            const newHeight = Math.max(10, Math.min(384, Math.round(newHalfHeight * 2)))
+
+            updateObject(obj.id, { height: newHeight })
+
+            // Reset handle position based on new height (adding handleOffset back)
+            e.target.x(0)
+            e.target.y(side === 'bottom' ? newHeight / 2 + handleOffset : -newHeight / 2 - handleOffset)
+        }
+
+        // Handle corner resize (both width and height)
+        type Corner = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'
+        const handleCornerDrag = (e: Konva.KonvaEventObject<DragEvent>, corner: Corner) => {
+            const stage = e.target.getStage()
+            if (!stage) return
+
+            // Get distance from center, subtracting handleOffset
+            const newHalfWidth = Math.abs(e.target.x()) - handleOffset
+            const newHalfHeight = Math.abs(e.target.y()) - handleOffset
+            const newWidth = Math.max(10, Math.min(512, Math.round(newHalfWidth * 2)))
+            const newHeight = Math.max(10, Math.min(384, Math.round(newHalfHeight * 2)))
+
+            updateObject(obj.id, { width: newWidth, height: newHeight })
+
+            // Reset handle position based on new dimensions (adding handleOffset back)
+            const xSign = corner.includes('Right') ? 1 : -1
+            const ySign = corner.includes('bottom') ? 1 : -1
+            e.target.x(xSign * (newWidth / 2 + handleOffset))
+            e.target.y(ySign * (newHeight / 2 + handleOffset))
+        }
+
+        // Rotation handle drag
+        const rotateDistance = height / 2 + 23
+        const handleRotateDrag = (e: Konva.KonvaEventObject<DragEvent>) => {
+            const stage = e.target.getStage()
+            if (!stage) return
+
+            const pointer = stage.getPointerPosition()
+            if (!pointer) return
+
+            const group = e.target.getParent()
+            if (!group) return
+            const groupPos = group.getAbsolutePosition()
+
+            const dx = pointer.x - groupPos.x
+            const dy = pointer.y - groupPos.y
+            let angle = Math.atan2(dx, -dy) * (180 / Math.PI)
+
+            angle = Math.round(angle)
+            if (angle > 180) angle -= 360
+            if (angle < -180) angle += 360
+
+            updateObject(obj.id, { angle })
+
+            e.target.x(0)
+            e.target.y(-rotateDistance)
+        }
+
         return (
             <Group
                 x={obj.x}
@@ -685,16 +778,213 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     opacity={(100 - (obj.transparency ?? 0)) / 100}
                 />
                 {isSelected && (
-                    <Rect
-                        x={-width / 2 - 2}
-                        y={-height / 2 - 2}
-                        width={width + 4}
-                        height={height + 4}
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        fill="transparent"
-                        listening={false}
-                    />
+                    <>
+                        {/* Selection box */}
+                        <Rect
+                            x={-width / 2 - 2}
+                            y={-height / 2 - 2}
+                            width={width + 4}
+                            height={height + 4}
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            fill="transparent"
+                            listening={false}
+                        />
+
+                        {/* Center crosshair */}
+                        <Line points={[-3, 0, 3, 0]} stroke="#fff" strokeWidth={1} listening={false} />
+                        <Line points={[0, -3, 0, 3]} stroke="#fff" strokeWidth={1} listening={false} />
+
+                        {/* Width handles (left/right edges) */}
+                        <Circle
+                            x={-width / 2 - handleOffset}
+                            y={0}
+                            radius={handleRadius}
+                            fill="#fff"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragMove={(e) => handleWidthDrag(e, 'left')}
+                            onDragEnd={(e) => { e.cancelBubble = true }}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                            onMouseDown={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grabbing'
+                            }}
+                            onMouseUp={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                        />
+                        <Circle
+                            x={width / 2 + handleOffset}
+                            y={0}
+                            radius={handleRadius}
+                            fill="#fff"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragMove={(e) => handleWidthDrag(e, 'right')}
+                            onDragEnd={(e) => { e.cancelBubble = true }}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                            onMouseDown={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grabbing'
+                            }}
+                            onMouseUp={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                        />
+
+                        {/* Height handles (top/bottom edges) */}
+                        <Circle
+                            x={0}
+                            y={-height / 2 - handleOffset}
+                            radius={handleRadius}
+                            fill="#fff"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragMove={(e) => handleHeightDrag(e, 'top')}
+                            onDragEnd={(e) => { e.cancelBubble = true }}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                            onMouseDown={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grabbing'
+                            }}
+                            onMouseUp={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                        />
+                        <Circle
+                            x={0}
+                            y={height / 2 + handleOffset}
+                            radius={handleRadius}
+                            fill="#fff"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragMove={(e) => handleHeightDrag(e, 'bottom')}
+                            onDragEnd={(e) => { e.cancelBubble = true }}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                            onMouseDown={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grabbing'
+                            }}
+                            onMouseUp={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                        />
+
+                        {/* Corner handles (resize both width and height) */}
+                        {[
+                            { x: -width / 2 - handleOffset, y: -height / 2 - handleOffset, corner: 'topLeft' as const },
+                            { x: width / 2 + handleOffset, y: -height / 2 - handleOffset, corner: 'topRight' as const },
+                            { x: width / 2 + handleOffset, y: height / 2 + handleOffset, corner: 'bottomRight' as const },
+                            { x: -width / 2 - handleOffset, y: height / 2 + handleOffset, corner: 'bottomLeft' as const },
+                        ].map((c, idx) => (
+                            <Circle
+                                key={`corner-${idx}`}
+                                x={c.x}
+                                y={c.y}
+                                radius={handleRadius}
+                                fill="#fff"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                draggable
+                                onDragStart={(e) => { e.cancelBubble = true }}
+                                onDragMove={(e) => handleCornerDrag(e, c.corner)}
+                                onDragEnd={(e) => { e.cancelBubble = true }}
+                                onMouseEnter={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'grab'
+                                }}
+                                onMouseLeave={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'default'
+                                }}
+                                onMouseDown={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'grabbing'
+                                }}
+                                onMouseUp={(e) => {
+                                    const stage = e.target.getStage()
+                                    if (stage) stage.container().style.cursor = 'grab'
+                                }}
+                            />
+                        ))}
+
+                        {/* Rotation handle */}
+                        <Line
+                            points={[0, -height / 2 - handleOffset - handleRadius, 0, -rotateDistance + handleRadius]}
+                            stroke="#3b82f6"
+                            strokeWidth={1}
+                            listening={false}
+                        />
+                        <Circle
+                            x={0}
+                            y={-rotateDistance}
+                            radius={handleRadius}
+                            fill="#fff"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            draggable
+                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragMove={handleRotateDrag}
+                            onDragEnd={(e) => { e.cancelBubble = true }}
+                            onMouseEnter={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                            onMouseLeave={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'default'
+                            }}
+                            onMouseDown={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grabbing'
+                            }}
+                            onMouseUp={(e) => {
+                                const stage = e.target.getStage()
+                                if (stage) stage.container().style.cursor = 'grab'
+                            }}
+                        />
+                    </>
                 )}
             </Group>
         )
@@ -869,6 +1159,97 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         )
     }
 
+    // Special handling for linear_knockback - grid of icons
+    if (obj.type === 'linear_knockback' && image) {
+        const hCount = obj.horizontalCount ?? 1
+        const vCount = obj.verticalCount ?? 1
+        const spacing = size * 0.91 // Overlap slightly
+
+        // Calculate total bounding box dimensions
+        const totalWidth = size + spacing * (hCount - 1)
+        const totalHeight = size + spacing * (vCount - 1)
+
+        const images: React.ReactNode[] = []
+        for (let row = 0; row < vCount; row++) {
+            for (let col = 0; col < hCount; col++) {
+                const offsetX = (col - (hCount - 1) / 2) * spacing
+                const offsetY = (row - (vCount - 1) / 2) * spacing
+                images.push(
+                    <KonvaImage
+                        key={`${row}-${col}`}
+                        image={image}
+                        x={offsetX}
+                        y={offsetY}
+                        width={size}
+                        height={size}
+                        offsetX={size / 2}
+                        offsetY={size / 2}
+                        opacity={(100 - (obj.transparency ?? 0)) / 100}
+                    />
+                )
+            }
+        }
+
+        return (
+            <Group
+                x={obj.x}
+                y={obj.y}
+                draggable
+                dragBoundFunc={dragBoundFunc}
+                onDragEnd={handleDragEnd}
+                onClick={onSelect}
+                onTap={onSelect}
+                rotation={obj.angle ?? 0}
+            >
+                {images}
+                {isSelected && renderSelectionHandles(totalWidth, totalHeight)}
+            </Group>
+        )
+    }
+
+    // Special handling for line_stack - vertical repeat
+    if (obj.type === 'line_stack' && image) {
+        const displayCount = obj.displayCount ?? 1
+        const spacing = size * 1.04 // Space slightly
+
+        // Calculate total bounding box height
+        const totalHeight = size + spacing * (displayCount - 1)
+
+        const images: React.ReactNode[] = []
+        for (let i = 0; i < displayCount; i++) {
+            const offsetY = (i - (displayCount - 1) / 2) * spacing
+            images.push(
+                <KonvaImage
+                    key={i}
+                    image={image}
+                    x={0}
+                    y={offsetY}
+                    width={size}
+                    height={size}
+                    offsetX={size / 2}
+                    offsetY={size / 2}
+                    opacity={(100 - (obj.transparency ?? 0)) / 100}
+                />
+            )
+        }
+
+        return (
+            <Group
+                x={obj.x}
+                y={obj.y}
+                draggable
+                dragBoundFunc={dragBoundFunc}
+                onDragEnd={handleDragEnd}
+                onClick={onSelect}
+                onTap={onSelect}
+                rotation={obj.angle ?? 0}
+            >
+                {images}
+                {isSelected && renderSelectionHandles(size, totalHeight)}
+            </Group>
+        )
+    }
+
     // Default: render as image
     if (!image) {
         // Placeholder while loading
@@ -940,7 +1321,10 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         prevObj.arcAngle === nextObj.arcAngle &&
         prevObj.donutRadius === nextObj.donutRadius &&
         prevObj.endX === nextObj.endX &&
-        prevObj.endY === nextObj.endY
+        prevObj.endY === nextObj.endY &&
+        prevObj.displayCount === nextObj.displayCount &&
+        prevObj.horizontalCount === nextObj.horizontalCount &&
+        prevObj.verticalCount === nextObj.verticalCount
     )
 })
 

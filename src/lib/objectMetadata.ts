@@ -129,12 +129,11 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
         displayName: "Donut AoE",
         isSvg: true,
         parameters: {
-            size: { min: 10, max: 200, step: 1, default: 100, label: 'Outer Radius' },
-            donutRadius: { min: 0, max: 200, step: 1, default: 50, label: 'Inner Radius' },
+            size: { min: 10, max: 200, step: 1, default: 50, label: 'Size' },
+            donutRadius: { min: 0, max: 240, step: 1, default: 50, label: 'Donut Radius' },
             arcAngle: { min: 10, max: 360, step: 10, default: 360, label: 'Arc Angle' },
             angle: { ...ANGLE_PARAM, label: 'Angle' },
             transparency: TRANSPARENCY_PARAM,
-            color: COLOR_PARAM,
         }
     },
     // Line AoE - WIDTH + HEIGHT + angle
@@ -143,8 +142,8 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
         displayName: "Line AoE",
         isSvg: true,
         parameters: {
-            width: { min: 10, max: 200, step: 1, default: 50, label: 'Width' },
-            height: { min: 10, max: 500, step: 1, default: 100, label: 'Length' },
+            width: { min: 16, max: 512, step: 1, default: 128, label: 'Width' },
+            height: { min: 16, max: 384, step: 1, default: 128, label: 'Height' },
             angle: { ...ANGLE_PARAM, label: 'Angle' },
             transparency: TRANSPARENCY_PARAM,
             color: COLOR_PARAM,
@@ -173,7 +172,7 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             size: SIZE_PARAM,
             angle: ANGLE_PARAM,
             transparency: TRANSPARENCY_PARAM,
-            displayCount: { min: 1, max: 8, step: 1, default: 1, label: 'Stack Count' },
+            displayCount: { min: 1, max: 5, step: 1, default: 1, label: 'Display Count' },
         }
     },
     // Knockbacks
@@ -182,11 +181,11 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
         baseSize: 270,
         displayName: "Linear Knockback",
         parameters: {
-            size: SIZE_PARAM,
+            size: SIZE_PARAM_50,
             angle: ANGLE_PARAM,
             transparency: TRANSPARENCY_PARAM,
-            horizontalCount: { min: 1, max: 8, step: 1, default: 1, label: 'Columns' },
-            verticalCount: { min: 1, max: 8, step: 1, default: 1, label: 'Rows' },
+            horizontalCount: { min: 1, max: 5, step: 1, default: 1, label: 'Horizontal Count' },
+            verticalCount: { min: 1, max: 5, step: 1, default: 1, label: 'Vertical Count' },
         }
     },
 

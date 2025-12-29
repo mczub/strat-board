@@ -49,10 +49,11 @@ function ObjectIcon({ obj }: { obj: ObjectDefinition }) {
 
 export function ObjectList({ className = '' }: ObjectListProps) {
     const [activeTab, setActiveTab] = useState('class_job')
+    const useSeparateDps = useEditorStore((state) => state.useSeparateDps)
 
     return (
         <Card className={`bg-card/50 border-border ${className}`}>
-            <CardHeader className="pb-2 pt-3 px-3">
+            <CardHeader className="px-3">
                 <CardTitle className="text-sm font-medium">Object List</CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-2">
@@ -81,7 +82,7 @@ export function ObjectList({ className = '' }: ObjectListProps) {
                             className="mt-0 max-h-[calc(100vh-20rem)] overflow-y-auto"
                         >
                             <div className="grid grid-cols-5 gap-0.5">
-                                {getObjectsByCategory(cat.id).map((obj) => (
+                                {getObjectsByCategory(cat.id, useSeparateDps).map((obj) => (
                                     <ObjectIcon key={obj.type} obj={obj} />
                                 ))}
                             </div>

@@ -38,14 +38,14 @@ export const OBJECT_DEFINITIONS: ObjectDefinition[] = [
     { type: 'dps_2', label: 'DPS 2', category: 'class_job' },
     { type: 'dps_3', label: 'DPS 3', category: 'class_job' },
     { type: 'dps_4', label: 'DPS 4', category: 'class_job' },
-    { type: 'melee_dps', label: 'Melee DPS', category: 'class_job' },
-    { type: 'ranged_dps', label: 'Ranged DPS', category: 'class_job' },
-    { type: 'physical_ranged_dps', label: 'Phys Ranged', category: 'class_job' },
-    { type: 'magical_ranged_dps', label: 'Mag Ranged', category: 'class_job' },
     { type: 'melee_1', label: 'Melee 1', category: 'class_job' },
     { type: 'melee_2', label: 'Melee 2', category: 'class_job' },
     { type: 'ranged_dps_1', label: 'Ranged 1', category: 'class_job' },
     { type: 'ranged_dps_2', label: 'Ranged 2', category: 'class_job' },
+    { type: 'melee_dps', label: 'Melee DPS', category: 'class_job' },
+    { type: 'ranged_dps', label: 'Ranged DPS', category: 'class_job' },
+    { type: 'physical_ranged_dps', label: 'Phys Ranged', category: 'class_job' },
+    { type: 'magical_ranged_dps', label: 'Mag Ranged', category: 'class_job' },
 
     // Row 5: Tank Jobs
     { type: 'paladin', label: 'PLD', category: 'class_job' },
@@ -178,9 +178,30 @@ export const OBJECT_DEFINITIONS: ObjectDefinition[] = [
     { type: 'grey_square', label: 'Grey Square', category: 'field' },
 ]
 
-// Helper to get objects by category
-export function getObjectsByCategory(category: string): ObjectDefinition[] {
-    return OBJECT_DEFINITIONS.filter((obj) => obj.category === category)
+// DPS types for unified mode (dps_1, dps_2, dps_3, dps_4)
+const UNIFIED_DPS_TYPES = new Set(['dps_1', 'dps_2', 'dps_3', 'dps_4'])
+
+// DPS types for separate mode (melee_1, melee_2, ranged_dps_1, ranged_dps_2)
+const SEPARATE_DPS_TYPES = new Set(['melee_1', 'melee_2', 'ranged_dps_1', 'ranged_dps_2'])
+
+// Helper to get objects by category, with optional DPS mode filtering
+export function getObjectsByCategory(category: string, useSeparateDps?: boolean): ObjectDefinition[] {
+    return OBJECT_DEFINITIONS.filter((obj) => {
+        // First filter by category
+        if (obj.category !== category) return false
+
+        // If not class_job category or useSeparateDps not specified, include all
+        if (category !== 'class_job' || useSeparateDps === undefined) return true
+
+        // Filter DPS icons based on mode
+        if (useSeparateDps) {
+            // Separate mode: hide unified DPS types (dps_1-4)
+            return !UNIFIED_DPS_TYPES.has(obj.type)
+        } else {
+            // Unified mode: hide separate DPS types (melee_1-2, ranged_dps_1-2)
+            return !SEPARATE_DPS_TYPES.has(obj.type)
+        }
+    })
 }
 
 // Background options

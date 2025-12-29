@@ -15,6 +15,16 @@ export interface EditorObject extends StrategyObject {
     id: string
 }
 
+// Board snapshot for history
+interface BoardSnapshot {
+    name: string
+    boardBackground: string
+    objects: EditorObject[]
+}
+
+// History limit
+const MAX_HISTORY = 50
+
 interface EditorState {
     // Board state
     board: {
@@ -26,6 +36,13 @@ interface EditorState {
     // Selection state
     selectedObjectId: string | null
     activeTab: number // 0-4 for the 5 object tabs
+
+    // Display settings
+    useSeparateDps: boolean
+
+    // Undo/Redo history
+    past: BoardSnapshot[]
+    future: BoardSnapshot[]
 
     // Actions
     addObject: (type: string, props?: Partial<StrategyObject>) => void
@@ -41,12 +58,26 @@ interface EditorState {
     loadFromCode: (code: string) => boolean
     clearBoard: () => void
     getSelectedObject: () => EditorObject | null
+    setUseSeparateDps: (val: boolean) => void
+
+    // Undo/Redo actions
+    undo: () => void
+    redo: () => void
+    canUndo: () => boolean
+    canRedo: () => boolean
 }
 
 // Board dimensions
 const BOARD_WIDTH = 512
 const BOARD_HEIGHT = 384
 const MAX_OBJECTS = 50
+
+// Helper to deep clone board for snapshot
+const cloneBoard = (board: BoardSnapshot): BoardSnapshot => ({
+    name: board.name,
+    boardBackground: board.boardBackground,
+    objects: board.objects.map(obj => ({ ...obj })),
+})
 
 export const useEditorStore = create<EditorState>((set, get) => ({
     // Initial state
@@ -57,6 +88,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     },
     selectedObjectId: null,
     activeTab: 0,
+    useSeparateDps: false,
+    past: [],
+    future: [],
 
     // Add a new object at canvas center
     addObject: (type, props = {}) => {
@@ -87,6 +121,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }
 
         set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 ...state.board,
                 objects: [...state.board.objects, newObject],
@@ -98,6 +134,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Update object properties
     updateObject: (id, updates) => {
         set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 ...state.board,
                 objects: state.board.objects.map((obj) =>
@@ -110,6 +148,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Delete an object
     deleteObject: (id) => {
         set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 ...state.board,
                 objects: state.board.objects.filter((obj) => obj.id !== id),
@@ -126,6 +166,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Move object to new position
     moveObject: (id, x, y) => {
         set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 ...state.board,
                 objects: state.board.objects.map((obj) =>
@@ -142,6 +184,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             const [moved] = objects.splice(fromIndex, 1)
             objects.splice(toIndex, 0, moved)
             return {
+                past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+                future: [],
                 board: {
                     ...state.board,
                     objects,
@@ -153,6 +197,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Set background
     setBackground: (bg) => {
         set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 ...state.board,
                 boardBackground: bg,
@@ -163,6 +209,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Set board name
     setName: (name) => {
         set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 ...state.board,
                 name,
@@ -238,14 +286,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
                 return editorObj
             })
 
-            set({
+            set((state) => ({
+                past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+                future: [],
                 board: {
                     name: decoded.name || '',
                     boardBackground: decoded.boardBackground || 'checkered_circle',
                     objects,
                 },
                 selectedObjectId: null,
-            })
+            }))
             return true
         } catch (e) {
             console.error('Failed to decode board:', e)
@@ -255,14 +305,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Clear board
     clearBoard: () => {
-        set({
+        set((state) => ({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: [],
             board: {
                 name: '',
                 boardBackground: 'checkered_circle',
                 objects: [],
             },
             selectedObjectId: null,
-        })
+        }))
     },
 
     // Get currently selected object
@@ -271,4 +323,47 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         if (!state.selectedObjectId) return null
         return state.board.objects.find((obj) => obj.id === state.selectedObjectId) || null
     },
+
+    // Toggle between unified and separate DPS display
+    setUseSeparateDps: (val) => {
+        set({ useSeparateDps: val })
+    },
+
+    // Undo - restore previous state
+    undo: () => {
+        const state = get()
+        if (state.past.length === 0) return
+
+        const previous = state.past[state.past.length - 1]
+        const newPast = state.past.slice(0, -1)
+
+        set({
+            past: newPast,
+            future: [cloneBoard(state.board), ...state.future],
+            board: cloneBoard(previous),
+            selectedObjectId: null, // Clear selection on undo
+        })
+    },
+
+    // Redo - restore next state
+    redo: () => {
+        const state = get()
+        if (state.future.length === 0) return
+
+        const next = state.future[0]
+        const newFuture = state.future.slice(1)
+
+        set({
+            past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+            future: newFuture,
+            board: cloneBoard(next),
+            selectedObjectId: null, // Clear selection on redo
+        })
+    },
+
+    // Check if undo is available
+    canUndo: () => get().past.length > 0,
+
+    // Check if redo is available
+    canRedo: () => get().future.length > 0,
 }))

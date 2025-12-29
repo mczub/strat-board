@@ -42,21 +42,34 @@ const BG_PATHS: Record<string, string> = {
     none: '/bg/none-bg.webp',
 }
 
-// Default icon sizes for rendering
-const ICON_SIZE_DEFAULTS: Record<string, number> = {
-    waymark_a: 44, waymark_b: 44, waymark_c: 44, waymark_d: 44,
-    waymark_1: 44, waymark_2: 44, waymark_3: 44, waymark_4: 44,
-    attack_1: 30, attack_2: 30, attack_3: 30, attack_4: 30,
-    tank_1: 32, tank_2: 32, healer_1: 32, healer_2: 32,
-    dps_1: 32, dps_2: 32, dps_3: 32, dps_4: 32,
-    stack: 124, stack_multi: 124, line_stack: 124,
-    gaze: 124, proximity: 248, proximity_player: 124,
-    tankbuster: 72, tower: 64, targeting: 72,
-    radial_knockback: 260, linear_knockback: 270,
-    small_enemy: 64, medium_enemy: 64, large_enemy: 64,
+// Get base size for an object type - uses OBJECT_METADATA as single source of truth
+const getBaseSize = (type: string): number => OBJECT_METADATA[type]?.baseSize ?? 32
+
+// DPS marker remapping: Unified (dps_1-4) <-> Separate (melee_1-2, ranged_dps_1-2)
+const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
+    'dps_1': 'melee_1',
+    'dps_2': 'melee_2',
+    'dps_3': 'ranged_dps_1',
+    'dps_4': 'ranged_dps_2',
 }
 
-const getBaseSize = (type: string): number => OBJECT_METADATA[type].baseSize || 48
+const DPS_SEPARATE_TO_UNIFIED: Record<string, string> = {
+    'melee_1': 'dps_1',
+    'melee_2': 'dps_2',
+    'ranged_dps_1': 'dps_3',
+    'ranged_dps_2': 'dps_4',
+}
+
+// Get display type based on useSeparateDps setting
+const getDisplayType = (type: string, useSeparateDps: boolean): string => {
+    if (useSeparateDps) {
+        // In Separate mode: remap unified DPS to separate icons
+        return DPS_UNIFIED_TO_SEPARATE[type] || type
+    } else {
+        // In Unified mode: remap separate DPS to unified icons
+        return DPS_SEPARATE_TO_UNIFIED[type] || type
+    }
+}
 
 interface EditorCanvasProps {
     className?: string
@@ -77,16 +90,20 @@ function useImage(src: string): HTMLImageElement | null {
 }
 
 // Component to render a single object
-const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSelect }: {
+const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSelect, useSeparateDps }: {
     obj: EditorObject
     isSelected: boolean
     onSelect: () => void
+    useSeparateDps: boolean
 }) {
     // Use getState() to avoid subscribing to store changes
     const moveObject = useCallback((id: string, x: number, y: number) => {
         useEditorStore.getState().moveObject(id, x, y)
     }, [])
-    const iconSrc = `/icons/${obj.type}.png`
+
+    // Get display type - remaps DPS icons based on Unified/Separate setting
+    const displayType = getDisplayType(obj.type, useSeparateDps)
+    const iconSrc = `/icons/${displayType}.png`
     const image = useImage(iconSrc)
 
     // Calculate size
@@ -106,7 +123,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
 
     // Render based on type
     if (obj.type === 'text') {
-        const fontSize = 16.5 * scale
+        const fontSize = 16 * scale
         const textContent = obj.text || 'Text'
         const textHeight = fontSize
         const verticalPadding = 4 // Few pixels top/bottom to match in-game
@@ -114,8 +131,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         // Use a temporary Konva Text node to measure exact width
         const tempText = new Konva.Text({
             text: textContent,
-            fontSize: fontSize,
-            fontStyle: "bold"
+            fontSize: fontSize
         })
         const textWidth = tempText.width()
         tempText.destroy()
@@ -134,12 +150,12 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     fontSize={fontSize}
                     fill={getObjectColor(obj)}
                     stroke="#000"
-                    strokeWidth={0.4}
+                    strokeWidth={1}
+                    fillAfterStrokeEnabled={true}
                     align="center"
                     offsetX={textWidth / 2}
                     offsetY={textHeight / 2}
                     opacity={(100 - (obj.transparency ?? 0)) / 100}
-                    fontStyle="bold"
                 />
                 {isSelected && (
                     <Rect
@@ -710,6 +726,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
     // Custom comparison for memo - only re-render if props actually changed
     if (prevProps.isSelected !== nextProps.isSelected) return false
     if (prevProps.onSelect !== nextProps.onSelect) return false
+    if (prevProps.useSeparateDps !== nextProps.useSeparateDps) return false
 
     const prevObj = prevProps.obj
     const nextObj = nextProps.obj
@@ -768,7 +785,7 @@ function BackgroundLayer({ background }: { background: string }) {
 }
 
 export function EditorCanvas({ className = '' }: EditorCanvasProps) {
-    const { board, selectedObjectId, selectObject } = useEditorStore()
+    const { board, selectedObjectId, selectObject, useSeparateDps } = useEditorStore()
     const stageRef = useRef<Konva.Stage>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const [scale, setScale] = useState(1)
@@ -838,7 +855,6 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
                 onTap={handleStageClick}
                 style={{
                     background: '#1a1a2e',
-                    borderRadius: '8px',
                     overflow: 'hidden'
                 }}
             >
@@ -858,6 +874,7 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
                                 obj={obj}
                                 isSelected={false}
                                 onSelect={() => selectObject(obj.id)}
+                                useSeparateDps={useSeparateDps}
                             />
                         ))}
                     {/* Then render selected object on top for click priority */}
@@ -867,6 +884,7 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
                             obj={board.objects.find(obj => obj.id === selectedObjectId)!}
                             isSelected={true}
                             onSelect={() => selectObject(selectedObjectId)}
+                            useSeparateDps={useSeparateDps}
                         />
                     )}
                 </Layer>

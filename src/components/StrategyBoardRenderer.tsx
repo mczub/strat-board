@@ -7,6 +7,7 @@
 
 import { JSX } from 'react'
 import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
+import { OBJECT_METADATA } from '@/lib/objectMetadata'
 
 interface StrategyBoardRendererProps {
     board: StrategyBoard
@@ -64,60 +65,9 @@ const SVG_ONLY_TYPES = new Set([
     'donut',
 ])
 
-// Default icon sizes (in board units)
-const ICON_SIZE_DEFAULTS: Record<string, number> = {
-    // Small icons (waymarks, markers)
-    waymark_a: 44, waymark_b: 44, waymark_c: 44, waymark_d: 44,
-    waymark_1: 44, waymark_2: 44, waymark_3: 44, waymark_4: 44,
-    attack_1: 30, attack_2: 30, attack_3: 30, attack_4: 30,
-    attack_5: 30, attack_6: 30, attack_7: 30, attack_8: 30,
-    bind_1: 30, bind_2: 30, bind_3: 30,
-    ignore_1: 30, ignore_2: 30,
-    square_marker: 30, circle_marker: 30, plus_marker: 30, triangle_marker: 30,
-    lockon_red: 44, lockon_blue: 44, lockon_purple: 44, lockon_green: 44,
-
-    // Role/job icons
-    tank: 32, tank_1: 32, tank_2: 32,
-    healer: 32, healer_1: 32, healer_2: 32,
-    dps: 32, dps_1: 32, dps_2: 32, dps_3: 32, dps_4: 32,
-    melee_dps: 32, ranged_dps: 32, physical_ranged_dps: 32, magical_ranged_dps: 32,
-    pure_healer: 32, barrier_healer: 32,
-
-    // Jobs
-    paladin: 28, monk: 28, warrior: 28, dragoon: 28, bard: 28,
-    white_mage: 28, black_mage: 28, summoner: 28, scholar: 28,
-    ninja: 28, machinist: 28, dark_knight: 28, astrologian: 28,
-    samurai: 28, red_mage: 28, blue_mage: 28, gunbreaker: 28,
-    dancer: 28, reaper: 28, sage: 28, viper: 28, pictomancer: 28,
-    gladiator: 28, pugilist: 28, marauder: 28, lancer: 28,
-    archer: 28, conjurer: 28, thaumaturge: 28, arcanist: 28, rogue: 28,
-
-    // Mechanics - larger
-    stack: 126, stack_multi: 124, line_stack: 124,
-    gaze: 124, proximity: 256, proximity_player: 124,
-    tankbuster: 72, tower: 64, targeting: 72,
-    radial_knockback: 260, linear_knockback: 270,
-    moving_circle_aoe: 126,
-    '1person_aoe': 64, '2person_aoe': 64, '3person_aoe': 64, '4person_aoe': 64,
-
-    // Shapes
-    shape_circle: 48, shape_x: 48, shape_triangle: 48, shape_square: 48,
-    up_arrow: 48, rotate: 48, rotate_clockwise: 48, rotate_counterclockwise: 48,
-    highlighted_circle: 48, highlighted_x: 48, highlighted_square: 48, highlighted_triangle: 48,
-
-    // Buffs/Debuffs
-    enhancement: 32, enfeeblement: 32,
-
-    small_enemy: 64, medium_enemy: 64, large_enemy: 64,
-
-    // Backgrounds (field overlays)
-    checkered_circle: 256, checkered_square: 256,
-    grey_circle: 256, grey_square: 256,
-}
-
-// Get base size for an object type
+// Get base size for an object type - uses OBJECT_METADATA as single source of truth
 function getBaseSize(type: string): number {
-    return ICON_SIZE_DEFAULTS[type] ?? 32
+    return OBJECT_METADATA[type]?.baseSize ?? 32
 }
 
 // Get scaled size for an object

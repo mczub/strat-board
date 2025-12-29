@@ -6,7 +6,7 @@
 
 import React from 'react'
 import { useEditorStore } from '@/stores/useEditorStore'
-import { getObjectMetadata, type ParameterType } from '@/lib/objectMetadata'
+import { getObjectMetadata, OBJECT_METADATA, type ParameterType } from '@/lib/objectMetadata'
 import { VALID_COLORS } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -125,8 +125,8 @@ function ColorPicker({
 
     return (
         <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Color</label>
-            <div className="grid grid-cols-8 gap-0.5">
+            <label className="text-sm text-muted-foreground">Color</label>
+            <div className="grid grid-cols-8 gap-0.5 mt-2 w-fit">
                 {VALID_COLORS.map((color, idx) => {
                     const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
                     if (!match) return null
@@ -359,16 +359,43 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                         <div className="flex items-center gap-2">
                             <img
                                 src={`/icons/${selectedObject.type}.png`}
-                                alt={selectedObject.type}
+                                alt={OBJECT_METADATA[selectedObject.type]?.displayName}
                                 className="w-6 h-6 object-contain"
                             />
                             <span className="text-sm font-medium capitalize">
-                                {selectedObject.type.replace(/_/g, ' ')}
+                                {OBJECT_METADATA[selectedObject.type]?.displayName}
                             </span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                            X: {Math.round(selectedObject.x)} / Y: {Math.round(selectedObject.y)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <label className="text-xs text-muted-foreground">X:</label>
+                            <Input
+                                type="number"
+                                value={Math.round(selectedObject.x)}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value)
+                                    if (!isNaN(val)) {
+                                        updateObject(selectedObject.id, { x: Math.max(0, Math.min(512, val)) })
+                                    }
+                                }}
+                                className="h-6 w-16 text-xs px-1"
+                                min={0}
+                                max={512}
+                            />
+                            <label className="text-xs text-muted-foreground">Y:</label>
+                            <Input
+                                type="number"
+                                value={Math.round(selectedObject.y)}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value)
+                                    if (!isNaN(val)) {
+                                        updateObject(selectedObject.id, { y: Math.max(0, Math.min(384, val)) })
+                                    }
+                                }}
+                                className="h-6 w-16 text-xs px-1"
+                                min={0}
+                                max={384}
+                            />
+                        </div>
                     </div>
 
                     {/* Parameter controls */}

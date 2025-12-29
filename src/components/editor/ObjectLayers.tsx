@@ -9,6 +9,31 @@ import { useEditorStore, type EditorObject } from '@/stores/useEditorStore'
 import { BACKGROUND_OPTIONS } from '@/lib/editorObjects'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { X, GripVertical } from 'lucide-react'
+import { OBJECT_METADATA } from '@/lib/objectMetadata'
+
+// DPS marker remapping: Unified (dps_1-4) <-> Separate (melee_1-2, ranged_dps_1-2)
+const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
+    'dps_1': 'melee_1',
+    'dps_2': 'melee_2',
+    'dps_3': 'ranged_dps_1',
+    'dps_4': 'ranged_dps_2',
+}
+
+const DPS_SEPARATE_TO_UNIFIED: Record<string, string> = {
+    'melee_1': 'dps_1',
+    'melee_2': 'dps_2',
+    'ranged_dps_1': 'dps_3',
+    'ranged_dps_2': 'dps_4',
+}
+
+// Get display type based on useSeparateDps setting
+const getDisplayType = (type: string, useSeparateDps: boolean): string => {
+    if (useSeparateDps) {
+        return DPS_UNIFIED_TO_SEPARATE[type] || type
+    } else {
+        return DPS_SEPARATE_TO_UNIFIED[type] || type
+    }
+}
 
 interface ObjectLayersProps {
     className?: string
@@ -23,12 +48,16 @@ interface LayerItemProps {
     onDragEnd: () => void
     isDragging: boolean
     dragOverIndex: number | null
+    useSeparateDps: boolean
 }
 
-function LayerItem({ obj, index, total, onDragStart, onDragOver, onDragEnd, isDragging, dragOverIndex }: LayerItemProps) {
+function LayerItem({ obj, index, total, onDragStart, onDragOver, onDragEnd, isDragging, dragOverIndex, useSeparateDps }: LayerItemProps) {
     const { selectedObjectId, selectObject, deleteObject, reorderObject } = useEditorStore()
     const isSelected = selectedObjectId === obj.id
-    const iconSrc = `/icons/${obj.type}.png`
+
+    // Get display type - remaps DPS icons based on Unified/Separate setting
+    const displayType = getDisplayType(obj.type, useSeparateDps)
+    const iconSrc = `/icons/${displayType}.png`
 
     // Display index: first object = 1, last object = highest number
     const displayIndex = index + 1
@@ -85,8 +114,8 @@ function LayerItem({ obj, index, total, onDragStart, onDragOver, onDragEnd, isDr
                     target.style.display = 'none'
                 }}
             />
-            <span className="flex-1 text-sm truncate capitalize">
-                {obj.type.replace(/_/g, ' ')}
+            <span className="flex-1 text-sm truncate">
+                {obj.text ? obj.text : OBJECT_METADATA[displayType]?.displayName}
             </span>
             <div className="flex items-center gap-0.5">
                 <button
@@ -122,7 +151,7 @@ function LayerItem({ obj, index, total, onDragStart, onDragOver, onDragEnd, isDr
 }
 
 export function ObjectLayers({ className = '' }: ObjectLayersProps) {
-    const { board, setBackground, reorderObject } = useEditorStore()
+    const { board, setBackground, reorderObject, useSeparateDps } = useEditorStore()
     const objectCount = board.objects.length
 
     // Drag state
@@ -156,7 +185,7 @@ export function ObjectLayers({ className = '' }: ObjectLayersProps) {
 
     return (
         <Card className={`bg-card/50 border-border ${className}`}>
-            <CardHeader className="pb-2 pt-3 px-3">
+            <CardHeader className="px-3">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                     <span>Object Layers</span>
                     <span className="text-xs font-normal text-muted-foreground">
@@ -183,7 +212,7 @@ export function ObjectLayers({ className = '' }: ObjectLayersProps) {
 
                 {/* Object List */}
                 <div
-                    className="space-y-0.5 max-h-[calc(100vh-22rem)] overflow-y-auto"
+                    className="space-y-0.5 max-h-[calc(100vh-27rem)] overflow-y-auto"
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDragEnd}
                 >
@@ -203,6 +232,7 @@ export function ObjectLayers({ className = '' }: ObjectLayersProps) {
                                 onDragEnd={handleDragEnd}
                                 isDragging={dragIndex === idx}
                                 dragOverIndex={dragOverIndex}
+                                useSeparateDps={useSeparateDps}
                             />
                         ))
                     )}

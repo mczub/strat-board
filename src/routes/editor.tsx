@@ -30,8 +30,18 @@ import {
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
+// Search params type for the editor route
+type EditorSearchParams = {
+    code?: string
+}
+
 export const Route = createFileRoute('/editor')({
     component: EditorPage,
+    validateSearch: (search: Record<string, unknown>): EditorSearchParams => {
+        return {
+            code: typeof search.code === 'string' ? search.code : undefined,
+        }
+    },
     head: () => ({
         meta: [
             { title: 'Strategy Board Editor | board.wtfdig.info' },
@@ -41,6 +51,7 @@ export const Route = createFileRoute('/editor')({
 })
 
 function EditorPage() {
+    const { code } = Route.useSearch()
     const { board, setName, clearBoard, exportCode, loadFromCode, useSeparateDps, setUseSeparateDps, undo, redo, canUndo, canRedo, selectObject, deleteObject, gridSize, setGridSize, showGrid, setShowGrid } = useEditorStore()
     const [exportedCode, setExportedCode] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
@@ -48,6 +59,17 @@ function EditorPage() {
     const [importError, setImportError] = useState<string | null>(null)
     const [showExportModal, setShowExportModal] = useState(false)
     const [showImportModal, setShowImportModal] = useState(false)
+    const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false)
+
+    // Load board from URL code param on mount
+    useEffect(() => {
+        if (code && !hasLoadedFromUrl) {
+            const success = loadFromCode(code)
+            if (success) {
+                setHasLoadedFromUrl(true)
+            }
+        }
+    }, [code, hasLoadedFromUrl, loadFromCode])
 
     // Keyboard shortcuts for undo/redo
     useEffect(() => {
@@ -179,11 +201,11 @@ function EditorPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Button variant="default" size="sm" onClick={() => setShowImportModal(true)}>
+                            <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
                                 <Upload className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Import</span>
                             </Button>
-                            <Button variant="default" size="sm" onClick={handleExport}>
+                            <Button variant="outline" size="sm" onClick={handleExport}>
                                 <Share2 className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Export</span>
                             </Button>

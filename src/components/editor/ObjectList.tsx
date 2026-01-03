@@ -22,17 +22,25 @@ function ObjectIcon({ obj }: { obj: ObjectDefinition }) {
         addObject(obj.type)
     }
 
+    const handleDragStart = (e: React.DragEvent) => {
+        // Set the object type as drag data
+        e.dataTransfer.setData('application/x-strat-board-object', obj.type)
+        e.dataTransfer.effectAllowed = 'copy'
+    }
+
     return (
         <button
             onClick={handleClick}
-            className="flex flex-col items-center justify-center p-1.5 rounded hover:bg-muted/50 transition-colors group"
+            draggable
+            onDragStart={handleDragStart}
+            className="flex flex-col items-center justify-center p-1.5 rounded hover:bg-muted/50 transition-colors group cursor-grab active:cursor-grabbing"
             title={obj.label}
         >
             <div className="w-8 h-8 flex items-center justify-center">
                 <img
                     src={iconSrc}
                     alt={obj.label}
-                    className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform"
+                    className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform pointer-events-none"
                     onError={(e) => {
                         // Fallback for missing icons
                         const target = e.target as HTMLImageElement

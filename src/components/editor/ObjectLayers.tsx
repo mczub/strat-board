@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useEditorStore, type EditorObject } from '@/stores/useEditorStore'
 import { BACKGROUND_OPTIONS } from '@/lib/editorObjects'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { X, GripVertical } from 'lucide-react'
+import { X, GripVertical, Eye, EyeOff, Lock, Unlock } from 'lucide-react'
 import { OBJECT_METADATA } from '@/lib/objectMetadata'
 
 // DPS marker remapping: Unified (dps_1-4) <-> Separate (melee_1-2, ranged_dps_1-2)
@@ -52,7 +52,7 @@ interface LayerItemProps {
 }
 
 function LayerItem({ obj, index, total, onDragStart, onDragOver, onDragEnd, isDragging, dragOverIndex, useSeparateDps }: LayerItemProps) {
-    const { selectedObjectId, selectObject, deleteObject, reorderObject } = useEditorStore()
+    const { selectedObjectId, selectObject, deleteObject, reorderObject, updateObject } = useEditorStore()
     const isSelected = selectedObjectId === obj.id
 
     // Get display type - remaps DPS icons based on Unified/Separate setting
@@ -118,6 +118,20 @@ function LayerItem({ obj, index, total, onDragStart, onDragOver, onDragEnd, isDr
                 {obj.text ? obj.text : OBJECT_METADATA[displayType]?.displayName}
             </span>
             <div className="flex items-center gap-0.5">
+                <button
+                    onClick={(e) => { e.stopPropagation(); updateObject(obj.id, { hidden: obj.hidden ? 0 : 1 }) }}
+                    className={`p-0.5 hover:bg-muted rounded ${obj.hidden ? 'text-muted-foreground' : ''}`}
+                    title={obj.hidden ? 'Show' : 'Hide'}
+                >
+                    {obj.hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); updateObject(obj.id, { locked: obj.locked ? 0 : 1 }) }}
+                    className={`p-0.5 hover:bg-muted rounded ${obj.locked ? 'text-primary' : ''}`}
+                    title={obj.locked ? 'Unlock' : 'Lock'}
+                >
+                    {obj.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); handleMoveUp() }}
                     disabled={index === 0}

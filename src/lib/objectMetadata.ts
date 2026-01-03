@@ -5,7 +5,7 @@
  * their default values, and valid ranges.
  */
 
-export type ParameterType = 'size' | 'angle' | 'transparency' | 'color' | 'text' | 'width' | 'height' | 'arcAngle' | 'donutRadius' | 'displayCount' | 'horizontalCount' | 'verticalCount'
+export type ParameterType = 'size' | 'angle' | 'transparency' | 'color' | 'text' | 'width' | 'height' | 'arcAngle' | 'donutRadius' | 'displayCount' | 'horizontalCount' | 'verticalCount' | 'verticalFlip' | 'horizontalFlip'
 
 export interface ParameterConfig {
     /** Min value (for numeric params) */
@@ -37,6 +37,8 @@ const SIZE_PARAM_50: ParameterConfig = { min: 50, max: 200, step: 1, default: 10
 const ANGLE_PARAM: ParameterConfig = { min: -180, max: 180, step: 1, default: 0 }
 const TRANSPARENCY_PARAM: ParameterConfig = { min: 0, max: 100, step: 1, default: 0 }
 const COLOR_PARAM: ParameterConfig = {}
+const VFLIP_PARAM: ParameterConfig = { default: 0 } // 0 or 1 (boolean)
+const HFLIP_PARAM: ParameterConfig = { default: 0 } // 0 or 1 (boolean)
 
 // Object type to metadata mapping
 export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
@@ -121,6 +123,8 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             arcAngle: { min: 10, max: 360, step: 10, default: 90, label: 'Arc Angle' },
             angle: { ...ANGLE_PARAM, label: 'Angle' },
             transparency: TRANSPARENCY_PARAM,
+            verticalFlip: VFLIP_PARAM,
+            horizontalFlip: HFLIP_PARAM,
         }
     },
     // Donut AoE - SIZE + arcAngle + donutRadius
@@ -133,7 +137,9 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             donutRadius: { min: 0, max: 240, step: 1, default: 50, label: 'Donut Radius' },
             arcAngle: { min: 10, max: 360, step: 10, default: 360, label: 'Arc Angle' },
             angle: { ...ANGLE_PARAM, label: 'Angle' },
-            transparency: TRANSPARENCY_PARAM,
+            transparency: { min: 0, max: 100, step: 1, default: 30 },
+            verticalFlip: VFLIP_PARAM,
+            horizontalFlip: HFLIP_PARAM,
         }
     },
     // Line AoE - WIDTH + HEIGHT + angle
@@ -154,11 +160,11 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
     stack: { baseSize: 126, displayName: "Stack", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     stack_multi: { baseSize: 124, displayName: "Stack (Multi-hit)", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     proximity: { baseSize: 256, displayName: "Proximity", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    proximity_player: { baseSize: 124, displayName: "Proximity (Player-targeted)", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
+    proximity_player: { baseSize: 124, displayName: "Proximity (Player-targeted)", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
     tankbuster: { baseSize: 72, displayName: "Tankbuster (Single Target)", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     tower: { baseSize: 64, displayName: "Tower", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     targeting: { baseSize: 72, displayName: "Targeting Indicator", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    moving_circle_aoe: { baseSize: 124, displayName: "Moving Circle AoE", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
+    moving_circle_aoe: { baseSize: 124, displayName: "Moving Circle AoE", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
     '1person_aoe': { baseSize: 64, displayName: "1-Person AoE", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     '2person_aoe': { baseSize: 64, displayName: "2-Person AoE", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     '3person_aoe': { baseSize: 64, displayName: "3-Person AoE", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
@@ -173,6 +179,7 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             angle: ANGLE_PARAM,
             transparency: TRANSPARENCY_PARAM,
             displayCount: { min: 1, max: 5, step: 1, default: 1, label: 'Display Count' },
+            verticalFlip: VFLIP_PARAM,
         }
     },
     // Knockbacks
@@ -186,6 +193,7 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             transparency: TRANSPARENCY_PARAM,
             horizontalCount: { min: 1, max: 5, step: 1, default: 1, label: 'Horizontal Count' },
             verticalCount: { min: 1, max: 5, step: 1, default: 1, label: 'Vertical Count' },
+            verticalFlip: VFLIP_PARAM,
         }
     },
 
@@ -228,13 +236,13 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
     lockon_green: { baseSize: 44, displayName: "Green Lock-on Marker", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
 
     // Enemies
-    small_enemy: { baseSize: 64, displayName: "Small Enemy", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    medium_enemy: { baseSize: 64, displayName: "Medium Enemy", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    large_enemy: { baseSize: 64, displayName: "Large Enemy", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
+    small_enemy: { baseSize: 64, displayName: "Small Enemy", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
+    medium_enemy: { baseSize: 64, displayName: "Medium Enemy", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
+    large_enemy: { baseSize: 64, displayName: "Large Enemy", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
 
     // Buffs/Debuffs
-    enhancement: { baseSize: 32, displayName: "Enhancement Effect", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    enfeeblement: { baseSize: 32, displayName: "Enfeeblement Effect", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
+    enhancement: { baseSize: 32, displayName: "Enhancement Effect", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM, horizontalFlip: HFLIP_PARAM } },
+    enfeeblement: { baseSize: 32, displayName: "Enfeeblement Effect", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM, horizontalFlip: HFLIP_PARAM } },
 
     // ============ SIGNS/SYMBOLS ============
     // Text - special handling
@@ -261,10 +269,10 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
     // Shapes
     shape_circle: { baseSize: 48, displayName: "Circle", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     shape_x: { baseSize: 48, displayName: "X", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    shape_triangle: { baseSize: 48, displayName: "Triangle", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
+    shape_triangle: { baseSize: 48, displayName: "Triangle", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
     shape_square: { baseSize: 48, displayName: "Square", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    up_arrow: { baseSize: 48, displayName: "Up Arrow", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
-    rotate: { baseSize: 48, displayName: "Rotate", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
+    up_arrow: { baseSize: 48, displayName: "Up Arrow", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM } },
+    rotate: { baseSize: 48, displayName: "Rotate", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM, verticalFlip: VFLIP_PARAM, horizontalFlip: HFLIP_PARAM } },
     rotate_clockwise: { baseSize: 48, displayName: "Rotate Clockwise", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
     rotate_counterclockwise: { baseSize: 48, displayName: "Rotate Counterclockwise", parameters: { size: SIZE_PARAM, angle: ANGLE_PARAM, transparency: TRANSPARENCY_PARAM } },
 

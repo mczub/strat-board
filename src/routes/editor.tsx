@@ -39,7 +39,7 @@ export const Route = createFileRoute('/editor')({
 })
 
 function EditorPage() {
-    const { board, setName, clearBoard, exportCode, loadFromCode, useSeparateDps, setUseSeparateDps, undo, redo, canUndo, canRedo, selectObject } = useEditorStore()
+    const { board, setName, clearBoard, exportCode, loadFromCode, useSeparateDps, setUseSeparateDps, undo, redo, canUndo, canRedo, selectObject, deleteObject, gridSize, setGridSize, showGrid, setShowGrid } = useEditorStore()
     const [exportedCode, setExportedCode] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
     const [importCode, setImportCode] = useState('')
@@ -69,11 +69,45 @@ function EditorPage() {
             if (e.key === 'Escape') {
                 selectObject(null)
             }
+            // Delete or Backspace to delete selected object
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                const currentSelectedId = useEditorStore.getState().selectedObjectId
+                if (currentSelectedId) {
+                    e.preventDefault()
+                    deleteObject(currentSelectedId)
+                }
+            }
+            // Arrow keys to move selected object
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                const state = useEditorStore.getState()
+                const selectedId = state.selectedObjectId
+                if (!selectedId) return
+
+                const obj = state.board.objects.find(o => o.id === selectedId)
+                if (!obj || obj.locked) return // Don't move locked objects
+
+                e.preventDefault()
+
+                // Move distance: 1 unit if grid off, grid size if grid on
+                const moveDistance = state.gridSize > 0 ? state.gridSize : 1
+
+                let newX = obj.x
+                let newY = obj.y
+
+                switch (e.key) {
+                    case 'ArrowUp': newY = Math.max(0, obj.y - moveDistance); break
+                    case 'ArrowDown': newY = Math.min(384, obj.y + moveDistance); break
+                    case 'ArrowLeft': newX = Math.max(0, obj.x - moveDistance); break
+                    case 'ArrowRight': newX = Math.min(384, obj.x + moveDistance); break
+                }
+
+                state.updateObject(selectedId, { x: newX, y: newY })
+            }
         }
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [undo, redo, selectObject])
+    }, [undo, redo, selectObject, deleteObject])
 
     const handleExport = () => {
         const code = exportCode()
@@ -139,6 +173,10 @@ function EditorPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                            <Button variant="default" size="sm" onClick={handleExport}>
+                                <Share2 className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Export</span>
+                            </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -148,10 +186,7 @@ function EditorPage() {
                                 <Trash2 className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Clear</span>
                             </Button>
-                            <Button variant="default" size="sm" onClick={handleExport}>
-                                <Share2 className="w-4 h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Export</span>
-                            </Button>
+
                         </div>
                     </div>
                 </div>
@@ -196,6 +231,45 @@ function EditorPage() {
                                     Redo
                                 </Button>
                             </div>
+                            {/* Grid Controls */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Grid</span>
+                                <div className="flex items-center rounded-md border border-border overflow-hidden">
+                                    <button
+                                        onClick={() => setGridSize(0)}
+                                        className={`px-2 py-1.5 text-xs transition-colors ${gridSize === 0
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-transparent hover:bg-muted'
+                                            }`}
+                                    >
+                                        Off
+                                    </button>
+                                    {[8, 16, 32].map((size) => (
+                                        <button
+                                            key={size}
+                                            onClick={() => setGridSize(size as 8 | 16 | 32)}
+                                            className={`px-2 py-1.5 text-xs transition-colors ${gridSize === size
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-transparent hover:bg-muted'
+                                                }`}
+                                        >
+                                            {size}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => setShowGrid(!showGrid)}
+                                    disabled={gridSize === 0}
+                                    className={`px-2 py-1.5 text-xs rounded-md border transition-colors ${gridSize === 0
+                                        ? 'opacity-50 cursor-not-allowed bg-transparent border-border'
+                                        : showGrid
+                                            ? 'bg-primary text-primary-foreground border-primary'
+                                            : 'bg-transparent border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    Snap
+                                </button>
+                            </div>
                             {/* DPS Mode Toggle */}
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground">DPS</span>
@@ -224,6 +298,7 @@ function EditorPage() {
                             </div>
 
 
+
                         </div>
                     </div>
                 </div>
@@ -233,7 +308,7 @@ function EditorPage() {
             <div className="flex-1 p-2 sm:p-4" onClick={handleEditorClick}>
                 <div className="max-w-[96rem] mx-auto h-full">
                     {/* Desktop: 3-column layout */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-3 h-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_320px] gap-3 h-full">
                         {/* Left Panel - Object List */}
                         <div className="order-2 lg:order-1" data-editor-interactive>
                             <ObjectList className="h-fit" />

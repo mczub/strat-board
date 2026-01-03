@@ -300,7 +300,7 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                     <ParameterSlider
                         key={paramType}
                         label={label}
-                        value={(selectedObject as any)[paramType] ?? config.default ?? 0}
+                        value={(selectedObject as any)[paramType] ?? 0}
                         min={config.min ?? 0}
                         max={config.max ?? 100}
                         step={config.step ?? 1}
@@ -334,6 +334,27 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                         step={config.step ?? 1}
                         onChange={(v) => handleNumericChange(paramType, v, config)}
                     />
+                )
+
+            case 'verticalFlip':
+            case 'horizontalFlip':
+                const isHorizontal = paramType === 'horizontalFlip'
+                const flipValue = (selectedObject as any)[paramType] ?? 0
+                return (
+                    <div key={paramType} className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                            {isHorizontal ? 'Flip Horizontal' : 'Flip Vertical'}
+                        </span>
+                        <button
+                            onClick={() => updateObject(selectedObject.id, { [paramType]: flipValue ? 0 : 1 })}
+                            className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${flipValue
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-transparent border-border hover:bg-muted'
+                                }`}
+                        >
+                            {flipValue ? 'Flipped' : 'Normal'}
+                        </button>
+                    </div>
                 )
 
             default:
@@ -395,6 +416,31 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                                 min={0}
                                 max={384}
                             />
+                            {/* Flip buttons - show if object supports them */}
+                            {'verticalFlip' in params && (
+                                <button
+                                    onClick={() => updateObject(selectedObject.id, { verticalFlip: selectedObject.verticalFlip ? 0 : 1 })}
+                                    title="Flip Vertical"
+                                    className={`h-6 px-2 text-xs rounded border transition-colors ${selectedObject.verticalFlip
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-transparent border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    ↕
+                                </button>
+                            )}
+                            {'horizontalFlip' in params && (
+                                <button
+                                    onClick={() => updateObject(selectedObject.id, { horizontalFlip: selectedObject.horizontalFlip ? 0 : 1 })}
+                                    title="Flip Horizontal"
+                                    className={`h-6 px-2 text-xs rounded border transition-colors ${selectedObject.horizontalFlip
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-transparent border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    ↔
+                                </button>
+                            )}
                         </div>
                     </div>
 

@@ -96,16 +96,34 @@ interface EditorCanvasProps {
     className?: string
 }
 
-// Hook to load image
+// Global image cache to prevent flashing when components re-render
+const imageCache = new Map<string, HTMLImageElement>()
+
+// Hook to load image with caching
 function useImage(src: string): HTMLImageElement | null {
-    const [image, setImage] = useState<HTMLImageElement | null>(null)
+    // Check cache first - if already loaded, use immediately
+    const cachedImage = imageCache.get(src)
+    const [image, setImage] = useState<HTMLImageElement | null>(cachedImage || null)
 
     useEffect(() => {
+        // If already in cache and matches current state, we're done
+        if (cachedImage && image === cachedImage) return
+
+        // If in cache but state is stale, update it
+        if (cachedImage) {
+            setImage(cachedImage)
+            return
+        }
+
+        // Load the image
         const img = new window.Image()
         img.src = src
-        img.onload = () => setImage(img)
+        img.onload = () => {
+            imageCache.set(src, img)
+            setImage(img)
+        }
         img.onerror = () => setImage(null)
-    }, [src])
+    }, [src, cachedImage, image])
 
     return image
 }
@@ -117,13 +135,19 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
     onSelect: () => void
     useSeparateDps: boolean
 }) {
+    // Check if object is hidden (show outline only, no content)
+    const isHidden = !!obj.hidden
+
+    // Check if object is locked (non-draggable, no handles)
+    const isLocked = !!obj.locked
+
     // Use getState() to avoid subscribing to store changes
     const moveObject = useCallback((id: string, x: number, y: number) => {
         useEditorStore.getState().moveObject(id, x, y)
     }, [])
 
-    const updateObject = useCallback((id: string, updates: Partial<EditorObject>) => {
-        useEditorStore.getState().updateObject(id, updates)
+    const updateObject = useCallback((id: string, updates: Partial<EditorObject>, skipHistory = false) => {
+        useEditorStore.getState().updateObject(id, updates, skipHistory)
     }, [])
 
     // Get display type - remaps DPS icons based on Unified/Separate setting
@@ -139,8 +163,16 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
     // Handle drag end (no onDragMove to avoid lag from per-frame re-renders)
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         // Clamp to canvas bounds
-        const x = clampX(e.target.x())
-        const y = clampY(e.target.y())
+        let x = clampX(e.target.x())
+        let y = clampY(e.target.y())
+
+        // Apply grid snap if enabled (Snap button is on AND gridSize is set)
+        const { gridSize, showGrid } = useEditorStore.getState()
+        if (showGrid && gridSize > 0) {
+            x = clampX(Math.round(x / gridSize) * gridSize)
+            y = clampY(Math.round(y / gridSize) * gridSize)
+        }
+
         e.target.x(x)
         e.target.y(y)
         moveObject(obj.id, x, y)
@@ -167,14 +199,15 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
 
         return (
             <>
-                {/* Selection box */}
+                {/* Selection box - dotted when hidden */}
                 <Rect
                     x={-halfWidth}
                     y={-halfHeight}
                     width={halfWidth * 2}
                     height={halfHeight * 2}
-                    stroke="#3b82f6"
+                    stroke={isHidden ? '#888' : '#3b82f6'}
                     strokeWidth={2}
+                    dash={isHidden ? [4, 4] : undefined}
                     fill="transparent"
                     listening={false}
                 />
@@ -194,7 +227,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 />
 
                 {/* Resize handles - corner circles */}
-                {supportsResize(obj.type) && (() => {
+                {!isLocked && supportsResize(obj.type) && (() => {
                     const handleRadius = 4
                     const corners = [
                         { x: -halfWidth, y: -halfHeight }, // top-left
@@ -226,7 +259,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                         const scaleFactor = newMaxHalf / originalMaxHalf
                         const newSizePercent = Math.max(minSize(obj.type), Math.min(200, Math.round(currentSizePercent * scaleFactor)))
 
-                        updateObject(obj.id, { size: newSizePercent })
+                        updateObject(obj.id, { size: newSizePercent }, true) // skipHistory=true for intermediate updates
 
                         // Calculate new corner positions by scaling from current position
                         const actualScaleFactor = newSizePercent / currentSizePercent
@@ -254,7 +287,12 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             stroke="#3b82f6"
                             strokeWidth={2}
                             draggable
-                            onDragStart={(e) => { e.cancelBubble = true }}
+                            onDragStart={(e) => {
+                                e.cancelBubble = true
+                                // Save snapshot before drag starts for undo
+                                const { saveHistorySnapshot } = useEditorStore.getState()
+                                saveHistorySnapshot()
+                            }}
                             onDragMove={(e) => handleResizeDrag(e, idx)}
                             onDragEnd={(e) => { e.cancelBubble = true }}
                             onMouseEnter={(e) => {
@@ -278,7 +316,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 })()}
 
                 {/* Rotation handle - circle above object with connecting line */}
-                {supportsRotation(obj.type) && (() => {
+                {!isLocked && supportsRotation(obj.type) && (() => {
                     const rotateDistance = halfHeight + 23
                     const handleRadius = 4
 
@@ -301,7 +339,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                         if (angle > 180) angle -= 360
                         if (angle < -180) angle += 360
 
-                        updateObject(obj.id, { angle })
+                        updateObject(obj.id, { angle }, true) // skipHistory=true for intermediate updates
 
                         e.target.x(0)
                         e.target.y(-rotateDistance)
@@ -323,7 +361,12 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                                 stroke="#3b82f6"
                                 strokeWidth={2}
                                 draggable
-                                onDragStart={(e) => { e.cancelBubble = true }}
+                                onDragStart={(e) => {
+                                    e.cancelBubble = true
+                                    // Save snapshot before drag starts for undo
+                                    const { saveHistorySnapshot } = useEditorStore.getState()
+                                    saveHistorySnapshot()
+                                }}
                                 onDragMove={handleRotateDrag}
                                 onDragEnd={(e) => { e.cancelBubble = true }}
                                 onMouseEnter={(e) => {
@@ -369,32 +412,36 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             <Group
                 x={obj.x}
                 y={obj.y}
-                draggable
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
-                <Text
-                    text={textContent}
-                    fontSize={fontSize}
-                    fill={getObjectColor(obj)}
-                    stroke="#000"
-                    strokeWidth={1}
-                    fillAfterStrokeEnabled={true}
-                    align="center"
-                    offsetX={textWidth / 2}
-                    offsetY={textHeight / 2}
-                    opacity={(100 - (obj.transparency ?? 0)) / 100}
-                />
+                {/* Only render content if not hidden */}
+                {!isHidden && (
+                    <Text
+                        text={textContent}
+                        fontSize={fontSize}
+                        fill={getObjectColor(obj)}
+                        stroke="#000"
+                        strokeWidth={1}
+                        fillAfterStrokeEnabled={true}
+                        align="center"
+                        offsetX={textWidth / 2}
+                        offsetY={textHeight / 2}
+                        opacity={(100 - (obj.transparency ?? 0)) / 100}
+                    />
+                )}
                 {isSelected && (
                     <Rect
                         x={-textWidth / 2}
                         y={-textHeight / 2 - verticalPadding}
                         width={textWidth}
                         height={textHeight + verticalPadding * 2}
-                        stroke="#3b82f6"
+                        stroke={isHidden ? "#888" : "#3b82f6"}
                         strokeWidth={2}
+                        dash={isHidden ? [4, 4] : undefined}
                         fill="transparent"
                         listening={false}
                     />
@@ -415,32 +462,37 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             <Group
                 x={obj.x}
                 y={obj.y}
-                draggable
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
-                <Circle
-                    radius={radius}
-                    fillRadialGradientStartPoint={{ x: 0, y: 0 }}
-                    fillRadialGradientEndPoint={{ x: 0, y: 0 }}
-                    fillRadialGradientStartRadius={0}
-                    fillRadialGradientEndRadius={radius}
-                    fillRadialGradientColorStops={[
-                        0, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.1)`,
-                        0.7, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.3)`,
-                        0.95, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.7)`,
-                        1, `rgba(${edgeColor[0]}, ${edgeColor[1]}, ${edgeColor[2]}, 1)`,
-                    ]}
-                    opacity={opacity}
-                />
-                <Circle
-                    radius={radius}
-                    stroke={strokeColor}
-                    strokeWidth={2}
-                    opacity={opacity}
-                />
+                {/* Only render content if not hidden */}
+                {!isHidden && (
+                    <>
+                        <Circle
+                            radius={radius}
+                            fillRadialGradientStartPoint={{ x: 0, y: 0 }}
+                            fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+                            fillRadialGradientStartRadius={0}
+                            fillRadialGradientEndRadius={radius}
+                            fillRadialGradientColorStops={[
+                                0, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.1)`,
+                                0.7, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.3)`,
+                                0.95, `rgba(${aoeColor[0]}, ${aoeColor[1]}, ${aoeColor[2]}, 0.7)`,
+                                1, `rgba(${edgeColor[0]}, ${edgeColor[1]}, ${edgeColor[2]}, 1)`,
+                            ]}
+                            opacity={opacity}
+                        />
+                        <Circle
+                            radius={radius}
+                            stroke={strokeColor}
+                            strokeWidth={2}
+                            opacity={opacity}
+                        />
+                    </>
+                )}
                 {isSelected && renderSelectionHandles(radius * 2)}
             </Group>
         )
@@ -494,62 +546,69 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 x={obj.x}
                 y={obj.y}
                 rotation={rotation}
-                draggable
+                scaleX={obj.horizontalFlip ? -1 : 1}
+                scaleY={obj.verticalFlip ? -1 : 1}
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
-                {/* Invisible hit area for click detection (custom sceneFunc shapes don't auto-detect hits) */}
-                <Rect
-                    x={-bboxWidth / 2}
-                    y={-bboxHeight / 2}
-                    width={bboxWidth}
-                    height={bboxHeight}
-                    fill="transparent"
-                />
-                {/* Gradient fill shape */}
-                <Shape
-                    sceneFunc={(context) => {
-                        const ctx = context._context as CanvasRenderingContext2D
-                        const startAngle = -Math.PI / 2
-                        const endAngle = startAngle + arcAngleRad
+                {/* Only render content if not hidden */}
+                {!isHidden && (
+                    <>
+                        {/* Invisible hit area for click detection (custom sceneFunc shapes don't auto-detect hits) */}
+                        <Rect
+                            x={-bboxWidth / 2}
+                            y={-bboxHeight / 2}
+                            width={bboxWidth}
+                            height={bboxHeight}
+                            fill="transparent"
+                        />
+                        {/* Gradient fill shape */}
+                        <Shape
+                            sceneFunc={(context) => {
+                                const ctx = context._context as CanvasRenderingContext2D
+                                const startAngle = -Math.PI / 2
+                                const endAngle = startAngle + arcAngleRad
 
-                        // Create radial gradient from tip
-                        const gradient = ctx.createRadialGradient(
-                            tipOffsetX, tipOffsetY, 0,
-                            tipOffsetX, tipOffsetY, radius
-                        )
-                        gradient.addColorStop(0, `${aoeColor}, 0.1)`)
-                        gradient.addColorStop(0.7, `${aoeColor}, 0.3)`)
-                        gradient.addColorStop(0.95, `${aoeColor}, 0.7)`)
-                        gradient.addColorStop(1, edgeColor)
+                                // Create radial gradient from tip
+                                const gradient = ctx.createRadialGradient(
+                                    tipOffsetX, tipOffsetY, 0,
+                                    tipOffsetX, tipOffsetY, radius
+                                )
+                                gradient.addColorStop(0, `${aoeColor}, 0.1)`)
+                                gradient.addColorStop(0.7, `${aoeColor}, 0.3)`)
+                                gradient.addColorStop(0.95, `${aoeColor}, 0.7)`)
+                                gradient.addColorStop(1, edgeColor)
 
-                        context.beginPath()
-                        context.moveTo(tipOffsetX, tipOffsetY)
-                        context.arc(tipOffsetX, tipOffsetY, radius, startAngle, endAngle, false)
-                        context.closePath()
+                                context.beginPath()
+                                context.moveTo(tipOffsetX, tipOffsetY)
+                                context.arc(tipOffsetX, tipOffsetY, radius, startAngle, endAngle, false)
+                                context.closePath()
 
-                        ctx.fillStyle = gradient
-                        ctx.fill()
-                    }}
-                    opacity={opacity}
-                />
-                {/* Stroke outline - separate shape for cleaner rendering */}
-                <Shape
-                    sceneFunc={(context, shape) => {
-                        const startAngle = -Math.PI / 2
-                        const endAngle = startAngle + arcAngleRad
+                                ctx.fillStyle = gradient
+                                ctx.fill()
+                            }}
+                            opacity={opacity}
+                        />
+                        {/* Stroke outline - separate shape for cleaner rendering */}
+                        <Shape
+                            sceneFunc={(context, shape) => {
+                                const startAngle = -Math.PI / 2
+                                const endAngle = startAngle + arcAngleRad
 
-                        // Draw just the arc stroke (outer edge)
-                        context.beginPath()
-                        context.arc(tipOffsetX, tipOffsetY, radius, startAngle, endAngle, false)
-                        context.strokeShape(shape)
-                    }}
-                    stroke={strokeColor}
-                    strokeWidth={2}
-                    opacity={opacity}
-                />
+                                // Draw just the arc stroke (outer edge)
+                                context.beginPath()
+                                context.arc(tipOffsetX, tipOffsetY, radius, startAngle, endAngle, false)
+                                context.strokeShape(shape)
+                            }}
+                            stroke={strokeColor}
+                            strokeWidth={2}
+                            opacity={opacity}
+                        />
+                    </>
+                )}
                 {isSelected && renderSelectionHandles(bboxWidth, bboxHeight)}
             </Group>
         )
@@ -571,20 +630,25 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                     x={obj.x}
                     y={obj.y}
                     rotation={rotation}
-                    draggable
+                    scaleX={obj.horizontalFlip ? -1 : 1}
+                    scaleY={obj.verticalFlip ? -1 : 1}
+                    draggable={!isLocked}
                     dragBoundFunc={dragBoundFunc}
                     onDragEnd={handleDragEnd}
                     onClick={onSelect}
                     onTap={onSelect}
                 >
-                    <Ring
-                        innerRadius={innerRadius}
-                        outerRadius={outerRadius}
-                        fill={`rgba(255, 161, 49, 0.5)`}
-                        stroke="#FEE874"
-                        strokeWidth={2}
-                        opacity={opacity}
-                    />
+                    {/* Only render content if not hidden */}
+                    {!isHidden && (
+                        <Ring
+                            innerRadius={innerRadius}
+                            outerRadius={outerRadius}
+                            fill="#FFA131"
+                            stroke="#FFA131"
+                            strokeWidth={2}
+                            opacity={opacity}
+                        />
+                    )}
                     {isSelected && renderSelectionHandles(outerRadius * 2)}
                 </Group>
             )
@@ -602,66 +666,75 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         const innerEndX = innerRadius * Math.cos(endAngleRad)
         const innerEndY = innerRadius * Math.sin(endAngleRad)
 
+        let bboxMarginLeft = 2, bboxMarginTop = 8, bboxMarginRight = 8, bboxMarginBottom = 2
+
         let minX = Math.min(0, 0, outerEndX, innerEndX)
         let maxX = Math.max(0, 0, outerEndX, innerEndX)
         let minY = Math.min(outerStartY, innerStartY, outerEndY, innerEndY)
         let maxY = Math.max(outerStartY, innerStartY, outerEndY, innerEndY)
 
-        if (endAngleRad > 0) { maxX = outerRadius }
-        if (endAngleRad > Math.PI / 2) { maxY = outerRadius }
+        if (endAngleRad > 0) { maxX = outerRadius; bboxMarginBottom = 8 }
+        if (endAngleRad > Math.PI / 2) { maxY = outerRadius; bboxMarginLeft = 8 }
         if (endAngleRad > Math.PI) { minX = -outerRadius }
 
-        const bboxCenterX = (minX + maxX) / 2
-        const bboxCenterY = (minY + maxY) / 2
+        const bboxCenterX = (minX + maxX - bboxMarginLeft + bboxMarginRight) / 2
+        const bboxCenterY = (minY + maxY - bboxMarginTop + bboxMarginBottom) / 2
         const centerOffsetX = -bboxCenterX
         const centerOffsetY = -bboxCenterY
 
         // Bounding box size for selection
-        const bboxWidth = maxX - minX
-        const bboxHeight = maxY - minY
+        const bboxWidth = maxX - minX + bboxMarginLeft + bboxMarginRight
+        const bboxHeight = maxY - minY + bboxMarginTop + bboxMarginBottom
 
         return (
             <Group
                 x={obj.x}
                 y={obj.y}
                 rotation={rotation}
-                draggable
+                scaleX={obj.horizontalFlip ? -1 : 1}
+                scaleY={obj.verticalFlip ? -1 : 1}
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
-                {/* Invisible hit area for click detection (custom sceneFunc shapes don't auto-detect hits) */}
-                <Rect
-                    x={-bboxWidth / 2}
-                    y={-bboxHeight / 2}
-                    width={bboxWidth}
-                    height={bboxHeight}
-                    fill="transparent"
-                />
-                <Shape
-                    sceneFunc={(context, shape) => {
-                        const startAngle = -Math.PI / 2
-                        const endAngle = startAngle + arcAngleRad
+                {/* Only render content if not hidden */}
+                {!isHidden && (
+                    <>
+                        {/* Invisible hit area for click detection (custom sceneFunc shapes don't auto-detect hits) */}
+                        <Rect
+                            x={-bboxWidth / 2}
+                            y={-bboxHeight / 2}
+                            width={bboxWidth}
+                            height={bboxHeight}
+                            fill="transparent"
+                        />
+                        <Shape
+                            sceneFunc={(context, shape) => {
+                                const startAngle = -Math.PI / 2
+                                const endAngle = startAngle + arcAngleRad
 
-                        context.beginPath()
-                        // Outer arc
-                        context.arc(centerOffsetX, centerOffsetY, outerRadius, startAngle, endAngle, false)
-                        // Line to inner arc end
-                        context.lineTo(
-                            centerOffsetX + innerRadius * Math.cos(endAngle),
-                            centerOffsetY + innerRadius * Math.sin(endAngle)
-                        )
-                        // Inner arc (reverse direction)
-                        context.arc(centerOffsetX, centerOffsetY, innerRadius, endAngle, startAngle, true)
-                        context.closePath()
-                        context.fillStrokeShape(shape)
-                    }}
-                    fill={`rgba(255, 161, 49, 0.5)`}
-                    stroke="#FEE874"
-                    strokeWidth={2}
-                    opacity={opacity}
-                />
+                                context.beginPath()
+                                // Outer arc
+                                context.arc(centerOffsetX, centerOffsetY, outerRadius, startAngle, endAngle, false)
+                                // Line to inner arc end
+                                context.lineTo(
+                                    centerOffsetX + innerRadius * Math.cos(endAngle),
+                                    centerOffsetY + innerRadius * Math.sin(endAngle)
+                                )
+                                // Inner arc (reverse direction)
+                                context.arc(centerOffsetX, centerOffsetY, innerRadius, endAngle, startAngle, true)
+                                context.closePath()
+                                context.fillStrokeShape(shape)
+                            }}
+                            fill="#FFA131"
+                            stroke="#FFA131"
+                            strokeWidth={2}
+                            opacity={opacity}
+                        />
+                    </>
+                )}
                 {isSelected && renderSelectionHandles(bboxWidth, bboxHeight)}
             </Group>
         )
@@ -684,7 +757,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             const newHalfWidth = handlePos - handleOffset
             const newWidth = Math.max(10, Math.min(512, Math.round(newHalfWidth * 2)))
 
-            updateObject(obj.id, { width: newWidth })
+            updateObject(obj.id, { width: newWidth }, true) // skipHistory for intermediate updates
 
             // Reset handle position based on new width (adding handleOffset back)
             e.target.x(side === 'right' ? newWidth / 2 + handleOffset : -newWidth / 2 - handleOffset)
@@ -701,7 +774,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             const newHalfHeight = handlePos - handleOffset
             const newHeight = Math.max(10, Math.min(384, Math.round(newHalfHeight * 2)))
 
-            updateObject(obj.id, { height: newHeight })
+            updateObject(obj.id, { height: newHeight }, true) // skipHistory for intermediate updates
 
             // Reset handle position based on new height (adding handleOffset back)
             e.target.x(0)
@@ -720,7 +793,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             const newWidth = Math.max(10, Math.min(512, Math.round(newHalfWidth * 2)))
             const newHeight = Math.max(10, Math.min(384, Math.round(newHalfHeight * 2)))
 
-            updateObject(obj.id, { width: newWidth, height: newHeight })
+            updateObject(obj.id, { width: newWidth, height: newHeight }, true) // skipHistory for intermediate updates
 
             // Reset handle position based on new dimensions (adding handleOffset back)
             const xSign = corner.includes('Right') ? 1 : -1
@@ -750,7 +823,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             if (angle > 180) angle -= 360
             if (angle < -180) angle += 360
 
-            updateObject(obj.id, { angle })
+            updateObject(obj.id, { angle }, true) // skipHistory for intermediate updates
 
             e.target.x(0)
             e.target.y(-rotateDistance)
@@ -761,22 +834,25 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 x={obj.x}
                 y={obj.y}
                 rotation={rotation}
-                draggable
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
             >
-                <Rect
-                    width={width}
-                    height={height}
-                    offsetX={width / 2}
-                    offsetY={height / 2}
-                    fill={getObjectColor(obj, '#ff8000')}
-                    stroke={getObjectColor(obj, '#ff8000')}
-                    strokeWidth={2}
-                    opacity={(100 - (obj.transparency ?? 0)) / 100}
-                />
+                {/* Only render content if not hidden */}
+                {!isHidden && (
+                    <Rect
+                        width={width}
+                        height={height}
+                        offsetX={width / 2}
+                        offsetY={height / 2}
+                        fill={getObjectColor(obj, '#ff8000')}
+                        stroke={getObjectColor(obj, '#ff8000')}
+                        strokeWidth={2}
+                        opacity={(100 - (obj.transparency ?? 0)) / 100}
+                    />
+                )}
                 {isSelected && (
                     <>
                         {/* Selection box */}
@@ -803,7 +879,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#3b82f6"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={(e) => { e.cancelBubble = true }}
                             onDragMove={(e) => handleWidthDrag(e, 'left')}
                             onDragEnd={(e) => { e.cancelBubble = true }}
@@ -831,7 +907,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#3b82f6"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={(e) => { e.cancelBubble = true }}
                             onDragMove={(e) => handleWidthDrag(e, 'right')}
                             onDragEnd={(e) => { e.cancelBubble = true }}
@@ -861,7 +937,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#3b82f6"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={(e) => { e.cancelBubble = true }}
                             onDragMove={(e) => handleHeightDrag(e, 'top')}
                             onDragEnd={(e) => { e.cancelBubble = true }}
@@ -889,7 +965,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#3b82f6"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={(e) => { e.cancelBubble = true }}
                             onDragMove={(e) => handleHeightDrag(e, 'bottom')}
                             onDragEnd={(e) => { e.cancelBubble = true }}
@@ -926,7 +1002,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                                 fill="#fff"
                                 stroke="#3b82f6"
                                 strokeWidth={2}
-                                draggable
+                                draggable={!isLocked}
                                 onDragStart={(e) => { e.cancelBubble = true }}
                                 onDragMove={(e) => handleCornerDrag(e, c.corner)}
                                 onDragEnd={(e) => { e.cancelBubble = true }}
@@ -963,7 +1039,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#3b82f6"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={(e) => { e.cancelBubble = true }}
                             onDragMove={handleRotateDrag}
                             onDragEnd={(e) => { e.cancelBubble = true }}
@@ -1085,7 +1161,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
 
         return (
             <Group
-                draggable
+                draggable={!isLocked}
                 onDragEnd={handleLineDragEnd}
                 onClick={onSelect}
                 onTap={onSelect}
@@ -1119,7 +1195,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#fff"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={handlePointDragStart}
                             onDragMove={handleStartPointDragMove}
                             onDragEnd={handleStartPointDragEnd}
@@ -1140,7 +1216,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                             fill="#fff"
                             stroke="#fff"
                             strokeWidth={2}
-                            draggable
+                            draggable={!isLocked}
                             onDragStart={handlePointDragStart}
                             onDragMove={handleEndPointDragMove}
                             onDragEnd={handleEndPointDragEnd}
@@ -1194,7 +1270,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             <Group
                 x={obj.x}
                 y={obj.y}
-                draggable
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
@@ -1237,7 +1313,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
             <Group
                 x={obj.x}
                 y={obj.y}
-                draggable
+                draggable={!isLocked}
                 dragBoundFunc={dragBoundFunc}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
@@ -1262,7 +1338,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 fill="#333"
                 stroke={isSelected ? '#3b82f6' : '#666'}
                 strokeWidth={isSelected ? 2 : 1}
-                draggable
+                draggable={!isLocked}
                 dragBoundFunc={(pos) => ({ x: clampX(pos.x + size / 2) - size / 2, y: clampY(pos.y + size / 2) - size / 2 })}
                 onDragEnd={handleDragEnd}
                 onClick={onSelect}
@@ -1275,21 +1351,26 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         <Group
             x={obj.x}
             y={obj.y}
-            draggable
+            draggable={!isLocked}
             dragBoundFunc={dragBoundFunc}
             onDragEnd={handleDragEnd}
             onClick={onSelect}
             onTap={onSelect}
             rotation={obj.angle ?? 0}
         >
-            <KonvaImage
-                image={image}
-                width={size}
-                height={size}
-                offsetX={size / 2}
-                offsetY={size / 2}
-                opacity={(100 - (obj.transparency ?? 0)) / 100}
-            />
+            {/* Only render content if not hidden */}
+            {!isHidden && (
+                <KonvaImage
+                    image={image}
+                    width={size}
+                    height={size}
+                    offsetX={size / 2}
+                    offsetY={size / 2}
+                    opacity={(100 - (obj.transparency ?? 0)) / 100}
+                    scaleX={obj.horizontalFlip ? -1 : 1}
+                    scaleY={obj.verticalFlip ? -1 : 1}
+                />
+            )}
             {isSelected && renderSelectionHandles(size)}
         </Group>
     )
@@ -1324,7 +1405,11 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         prevObj.endY === nextObj.endY &&
         prevObj.displayCount === nextObj.displayCount &&
         prevObj.horizontalCount === nextObj.horizontalCount &&
-        prevObj.verticalCount === nextObj.verticalCount
+        prevObj.verticalCount === nextObj.verticalCount &&
+        prevObj.verticalFlip === nextObj.verticalFlip &&
+        prevObj.horizontalFlip === nextObj.horizontalFlip &&
+        prevObj.hidden === nextObj.hidden &&
+        prevObj.locked === nextObj.locked
     )
 })
 
@@ -1358,8 +1443,44 @@ function BackgroundLayer({ background }: { background: string }) {
     )
 }
 
+// Grid layer component - draws grid lines (shows when gridSize > 0)
+function GridLayer({ gridSize }: { gridSize: number }) {
+    if (gridSize === 0) return null
+
+    const lines: React.ReactNode[] = []
+    const gridColor = 'rgba(255, 255, 255, 0.15)'
+
+    // Vertical lines
+    for (let x = gridSize; x < BOARD_WIDTH; x += gridSize) {
+        lines.push(
+            <Line
+                key={`v-${x}`}
+                points={[x, 0, x, BOARD_HEIGHT]}
+                stroke={gridColor}
+                strokeWidth={1}
+                listening={false}
+            />
+        )
+    }
+
+    // Horizontal lines
+    for (let y = gridSize; y < BOARD_HEIGHT; y += gridSize) {
+        lines.push(
+            <Line
+                key={`h-${y}`}
+                points={[0, y, BOARD_WIDTH, y]}
+                stroke={gridColor}
+                strokeWidth={1}
+                listening={false}
+            />
+        )
+    }
+
+    return <>{lines}</>
+}
+
 export function EditorCanvas({ className = '' }: EditorCanvasProps) {
-    const { board, selectedObjectId, selectObject, useSeparateDps } = useEditorStore()
+    const { board, selectedObjectId, selectObject, useSeparateDps, gridSize } = useEditorStore()
     const stageRef = useRef<Konva.Stage>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const [scale, setScale] = useState(1)
@@ -1413,11 +1534,51 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [])
 
+    // Handle drag over (needed to allow drop)
+    const handleDragOver = (e: React.DragEvent) => {
+        if (e.dataTransfer.types.includes('application/x-strat-board-object')) {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'copy'
+        }
+    }
+
+    // Handle drop - add object at drop position
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault()
+        const objectType = e.dataTransfer.getData('application/x-strat-board-object')
+        if (!objectType) return
+
+        // Get drop position relative to container
+        const container = containerRef.current
+        if (!container) return
+
+        const rect = container.getBoundingClientRect()
+        const dropX = e.clientX - rect.left
+        const dropY = e.clientY - rect.top
+
+        // Convert from screen pixels to canvas coordinates
+        let canvasX = clampX(Math.round(dropX / scale))
+        let canvasY = clampY(Math.round(dropY / scale))
+
+        // Apply grid snap if enabled (Snap button is on AND gridSize is set)
+        const { showGrid } = useEditorStore.getState()
+        if (showGrid && gridSize > 0) {
+            canvasX = clampX(Math.round(canvasX / gridSize) * gridSize)
+            canvasY = clampY(Math.round(canvasY / gridSize) * gridSize)
+        }
+
+        // Add object at the drop position (pass x,y via props)
+        const { addObject } = useEditorStore.getState()
+        addObject(objectType, { x: canvasX, y: canvasY })
+    }
+
     return (
         <div
             ref={containerRef}
             className={`relative ${className}`}
             style={{ aspectRatio: '4/3', width: '100%' }}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
         >
             <Stage
                 ref={stageRef}
@@ -1435,6 +1596,7 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
                 {/* Background layer */}
                 <Layer>
                     <BackgroundLayer background={board.boardBackground} />
+                    <GridLayer gridSize={gridSize} />
                 </Layer>
 
                 {/* Objects layer - render in reverse so first object is on top, selected object renders last for click priority */}

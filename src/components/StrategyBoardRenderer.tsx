@@ -309,6 +309,8 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const innerStartX = 0
         const innerStartY = -innerRadius
 
+        let bboxMarginLeft = 2, bboxMarginTop = 8, bboxMarginRight = 8, bboxMarginBottom = 2
+
         // End points
         const outerEndX = outerRadius * Math.cos(endAngleRad)
         const outerEndY = outerRadius * Math.sin(endAngleRad)
@@ -323,15 +325,15 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
         // Check cardinal directions if they fall within the arc sweep
         // East (0°): arc extends to outerRadius
-        if (endAngleRad > 0) { maxX = outerRadius }
+        if (endAngleRad > 0) { maxX = outerRadius; bboxMarginBottom = 8 }
         // South (90°/π/2): arc extends to outerRadius
-        if (endAngleRad > Math.PI / 2) { maxY = outerRadius }
+        if (endAngleRad > Math.PI / 2) { maxY = outerRadius; bboxMarginLeft = 8 }
         // West (180°/π): arc extends to -outerRadius
         if (endAngleRad > Math.PI) { minX = -outerRadius }
 
         // Bounding box center offset from the arc's geometric center (0,0)
-        const bboxCenterX = (minX + maxX) / 2
-        const bboxCenterY = (minY + maxY) / 2
+        const bboxCenterX = (minX + maxX - bboxMarginLeft + bboxMarginRight) / 2
+        const bboxCenterY = (minY + maxY - bboxMarginTop + bboxMarginBottom) / 2
 
         // Input x,y is the bounding box center, so offset to get actual arc center
         const centerX = x - bboxCenterX
@@ -402,23 +404,24 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         // Bounding box includes the cone tip (0,0) and the arc
         // For a cone, the tip is always at (0,0) relative to itself
         let minX = 0, maxX = 0, minY = -radius, maxY = 0
+        let bboxMarginLeft = 2, bboxMarginTop = 8, bboxMarginRight = 8, bboxMarginBottom = 2
 
         // Check the end point of the arc
         const endX = radius * Math.cos(endAngleRad)
         const endY = radius * Math.sin(endAngleRad)
 
         minX = Math.min(0, endX)
-        maxX = Math.max(0, endX + 16)
-        maxY = Math.max(0, endY + 16)
+        maxX = Math.max(0, endX)
+        maxY = Math.max(0, endY)
 
         // Check cardinal directions if they fall within the arc sweep
-        if (endAngleRad > 0) { maxX = radius + 16 }  // East
-        if (endAngleRad > Math.PI / 2) { maxY = radius + 16 }  // South
-        if (endAngleRad > Math.PI) { minX = -radius - 16 }  // West
+        if (endAngleRad > 0) { maxX = radius; bboxMarginBottom = 8 }  // East
+        if (endAngleRad > Math.PI / 2) { maxY = radius; bboxMarginLeft = 8 }  // South
+        if (endAngleRad > Math.PI) { minX = -radius }  // West
 
         // Bounding box center offset from the cone tip (which is at 0,0)
-        const bboxCenterX = (minX + maxX) / 2
-        const bboxCenterY = (minY + maxY) / 2
+        const bboxCenterX = (minX + maxX - bboxMarginLeft + bboxMarginRight) / 2
+        const bboxCenterY = (minY + maxY - bboxMarginTop + bboxMarginBottom) / 2
 
         // Input x,y is the bounding box center, so offset to get actual cone tip
         const tipX = x - bboxCenterX

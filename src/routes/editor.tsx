@@ -25,8 +25,10 @@ import {
     Split,
     Undo,
     Redo,
-    Pencil
+    Pencil,
+    Upload
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 export const Route = createFileRoute('/editor')({
     component: EditorPage,
@@ -44,6 +46,8 @@ function EditorPage() {
     const [copied, setCopied] = useState(false)
     const [importCode, setImportCode] = useState('')
     const [importError, setImportError] = useState<string | null>(null)
+    const [showExportModal, setShowExportModal] = useState(false)
+    const [showImportModal, setShowImportModal] = useState(false)
 
     // Keyboard shortcuts for undo/redo
     useEffect(() => {
@@ -113,6 +117,7 @@ function EditorPage() {
         const code = exportCode()
         if (code) {
             setExportedCode(code)
+            setShowExportModal(true)
         }
     }
 
@@ -129,6 +134,7 @@ function EditorPage() {
         if (success) {
             setImportCode('')
             setImportError(null)
+            setShowImportModal(false)
         } else {
             setImportError('Invalid share code')
         }
@@ -173,6 +179,10 @@ function EditorPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                            <Button variant="default" size="sm" onClick={() => setShowImportModal(true)}>
+                                <Upload className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Import</span>
+                            </Button>
                             <Button variant="default" size="sm" onClick={handleExport}>
                                 <Share2 className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Export</span>
@@ -326,75 +336,6 @@ function EditorPage() {
                             <div data-editor-interactive>
                                 <ObjectParameters />
                             </div>
-
-                            {/* Export Result */}
-                            {exportedCode && (
-                                <Card className="bg-card/50 border-border">
-                                    <CardContent className="py-3 px-4 space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium">Share Code</span>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={handleCopy}
-                                                >
-                                                    {copied ? (
-                                                        <Check className="w-4 h-4 mr-1" />
-                                                    ) : (
-                                                        <Copy className="w-4 h-4 mr-1" />
-                                                    )}
-                                                    Copy
-                                                </Button>
-                                                {viewCode && (
-                                                    <Link
-                                                        to="/$code"
-                                                        params={{ code: encodeURIComponent(`stgy:${viewCode}`) }}
-                                                        target="_blank"
-                                                    >
-                                                        <Button variant="outline" size="sm">
-                                                            <ExternalLink className="w-4 h-4 mr-1" />
-                                                            View
-                                                        </Button>
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <code className="block text-xs bg-muted p-2 rounded font-mono break-all max-h-20 overflow-y-auto">
-                                            {exportedCode}
-                                        </code>
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            {/* Import Section */}
-                            <Card className="bg-card/50 border-border">
-                                <CardContent className="py-3 px-4">
-                                    <div className="flex items-center gap-2">
-                                        <Input
-                                            value={importCode}
-                                            onChange={(e) => {
-                                                setImportCode(e.target.value)
-                                                setImportError(null)
-                                            }}
-                                            placeholder="Paste share code to import..."
-                                            className="flex-1 h-8 font-mono text-xs"
-                                        />
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleImport}
-                                            disabled={!importCode.trim()}
-                                        >
-                                            <Download className="w-4 h-4 mr-1" />
-                                            Import
-                                        </Button>
-                                    </div>
-                                    {importError && (
-                                        <p className="text-xs text-destructive mt-2">{importError}</p>
-                                    )}
-                                </CardContent>
-                            </Card>
                         </div>
 
                         {/* Right Panel - Object Layers */}
@@ -404,6 +345,93 @@ function EditorPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Export Modal */}
+            <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+                <DialogContent onClose={() => setShowExportModal(false)} className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Export Share Code</DialogTitle>
+                        <DialogDescription>
+                            Copy the share code below to share your board or view it online.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 p-6 pt-0">
+                        <code className="block text-xs bg-muted p-3 rounded font-mono break-all max-h-32 overflow-y-auto">
+                            {exportedCode}
+                        </code>
+                        <div className="flex gap-2 justify-end">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCopy}
+                            >
+                                {copied ? (
+                                    <Check className="w-4 h-4 mr-1" />
+                                ) : (
+                                    <Copy className="w-4 h-4 mr-1" />
+                                )}
+                                {copied ? 'Copied!' : 'Copy'}
+                            </Button>
+                            {viewCode && (
+                                <Link
+                                    to="/$code"
+                                    params={{ code: encodeURIComponent(`stgy:${viewCode}`) }}
+                                    target="_blank"
+                                >
+                                    <Button variant="default" size="sm">
+                                        <ExternalLink className="w-4 h-4 mr-1" />
+                                        View
+                                    </Button>
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Import Modal */}
+            <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+                <DialogContent onClose={() => setShowImportModal(false)} className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Import Share Code</DialogTitle>
+                        <DialogDescription>
+                            Paste a share code to load a strategy board.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 p-6 pt-0">
+                        <Input
+                            value={importCode}
+                            onChange={(e) => {
+                                setImportCode(e.target.value)
+                                setImportError(null)
+                            }}
+                            placeholder="Paste share code here..."
+                            className="font-mono text-sm"
+                        />
+                        {importError && (
+                            <p className="text-sm text-destructive">{importError}</p>
+                        )}
+                        <div className="flex gap-2 justify-end">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowImportModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="default"
+                                size="sm"
+                                onClick={handleImport}
+                                disabled={!importCode.trim()}
+                            >
+                                <Download className="w-4 h-4 mr-1" />
+                                Import
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

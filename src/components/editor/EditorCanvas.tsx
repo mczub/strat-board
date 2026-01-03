@@ -451,7 +451,7 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
     }
 
     if (obj.type === 'circle_aoe') {
-        const radius = size / 2
+        const radius = size
         const opacity = (100 - (obj.transparency ?? 0)) / 100
         // AoE gradient colors matching StrategyBoardRenderer
         const aoeColor = [255, 161, 49] // #FFA131

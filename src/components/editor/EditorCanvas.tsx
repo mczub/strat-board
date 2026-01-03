@@ -9,26 +9,21 @@ import { useEditorStore, type EditorObject } from '@/stores/useEditorStore'
 import React, { useEffect, useRef, useState, memo, useCallback } from 'react'
 import Konva from 'konva'
 import { OBJECT_METADATA } from '@/lib/objectMetadata'
-
-// Board dimensions
-const BOARD_WIDTH = 512
-const BOARD_HEIGHT = 384
+import {
+    BOARD_WIDTH,
+    BOARD_HEIGHT,
+    remapDpsType,
+    getObjectColor as getObjectColorFromUtils,
+    getBaseSize,
+} from '@/lib/renderingUtils'
 
 // Clamp coordinates to canvas bounds
 const clampX = (x: number) => Math.max(0, Math.min(BOARD_WIDTH, x))
 const clampY = (y: number) => Math.max(0, Math.min(BOARD_HEIGHT, y))
 
-// Get color for an object - prioritizes RGB properties (set by color picker) over hex string
+// Get color for an object - wrapper for EditorObject type
 const getObjectColor = (obj: EditorObject, defaultColor = '#ffffff'): string => {
-    // Check RGB components first (these are set by the color picker)
-    if (obj.colorR !== undefined || obj.colorG !== undefined || obj.colorB !== undefined) {
-        return `rgb(${obj.colorR ?? 255}, ${obj.colorG ?? 255}, ${obj.colorB ?? 255})`
-    }
-    // Fall back to hex color string (from imported boards)
-    if (obj.color && typeof obj.color === 'string') {
-        return obj.color
-    }
-    return defaultColor
+    return getObjectColorFromUtils(obj, defaultColor)
 }
 
 // Background image paths
@@ -41,9 +36,6 @@ const BG_PATHS: Record<string, string> = {
     grey: '/bg/grey-bg.webp',
     none: '/bg/none-bg.webp',
 }
-
-// Get base size for an object type - uses OBJECT_METADATA as single source of truth
-const getBaseSize = (type: string): number => OBJECT_METADATA[type]?.baseSize ?? 32
 
 // Check if object type supports resize (has size parameter)
 // Excludes: line, line_aoe (special cases), text (no resize)
@@ -66,30 +58,9 @@ const supportsRotation = (type: string): boolean => {
     return metadata?.parameters?.angle !== undefined
 }
 
-// DPS marker remapping: Unified (dps_1-4) <-> Separate (melee_1-2, ranged_dps_1-2)
-const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
-    'dps_1': 'melee_1',
-    'dps_2': 'melee_2',
-    'dps_3': 'ranged_dps_1',
-    'dps_4': 'ranged_dps_2',
-}
-
-const DPS_SEPARATE_TO_UNIFIED: Record<string, string> = {
-    'melee_1': 'dps_1',
-    'melee_2': 'dps_2',
-    'ranged_dps_1': 'dps_3',
-    'ranged_dps_2': 'dps_4',
-}
-
 // Get display type based on useSeparateDps setting
 const getDisplayType = (type: string, useSeparateDps: boolean): string => {
-    if (useSeparateDps) {
-        // In Separate mode: remap unified DPS to separate icons
-        return DPS_UNIFIED_TO_SEPARATE[type] || type
-    } else {
-        // In Unified mode: remap separate DPS to unified icons
-        return DPS_SEPARATE_TO_UNIFIED[type] || type
-    }
+    return remapDpsType(type, useSeparateDps)
 }
 
 interface EditorCanvasProps {

@@ -114,8 +114,8 @@ function EditorPage() {
 
                 e.preventDefault()
 
-                // Move distance: 1 unit if grid off, grid size if grid on
-                const moveDistance = state.gridSize > 0 ? state.gridSize : 1
+                // Move distance: grid size if snap enabled, otherwise 1 unit
+                const moveDistance = (state.showGrid && state.gridSize > 0) ? state.gridSize : 1
 
                 let newX = obj.x
                 let newY = obj.y

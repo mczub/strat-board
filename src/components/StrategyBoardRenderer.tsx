@@ -7,7 +7,17 @@
 
 import { JSX } from 'react'
 import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
-import { OBJECT_METADATA } from '@/lib/objectMetadata'
+import {
+    BOARD_WIDTH,
+    BOARD_HEIGHT,
+    DPS_UNIFIED_TO_SEPARATE,
+    UNIFIED_ROLE_TO_TYPES,
+    SEPARATE_ROLE_TO_TYPES,
+    getScaledSize,
+    getObjectOpacity,
+    getObjectColor,
+    AOE_COLORS,
+} from '@/lib/renderingUtils'
 
 interface StrategyBoardRendererProps {
     board: StrategyBoard
@@ -19,42 +29,6 @@ interface StrategyBoardRendererProps {
     highlightRole?: string // Role to highlight: 'MT', 'OT', 'H1', 'H2', 'D1'/'M1', etc.
 }
 
-// DPS marker remapping: Unified (dps_1-4) vs Separate (melee_1-2, ranged_dps_1-2)
-const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
-    'dps_1': 'melee_1',
-    'dps_2': 'melee_2',
-    'dps_3': 'ranged_dps_1',
-    'dps_4': 'ranged_dps_2',
-}
-
-// Role to icon type mapping - Unified mode
-const UNIFIED_ROLE_TO_TYPES: Record<string, string[]> = {
-    'MT': ['tank_1'],
-    'ST': ['tank_2'],
-    'H1': ['healer_1'],
-    'H2': ['healer_2'],
-    'D1': ['dps_1'],
-    'D2': ['dps_2'],
-    'D3': ['dps_3'],
-    'D4': ['dps_4'],
-}
-
-// Role to icon type mapping - Separate mode
-const SEPARATE_ROLE_TO_TYPES: Record<string, string[]> = {
-    'MT': ['tank_1'],
-    'OT': ['tank_2'],
-    'H1': ['healer_1'],
-    'H2': ['healer_2'],
-    'M1': ['melee_1'],
-    'M2': ['melee_2'],
-    'R1': ['ranged_dps_1'],
-    'R2': ['ranged_dps_2'],
-}
-
-// Board dimensions (from FORMAT.md)
-const BOARD_WIDTH = 512
-const BOARD_HEIGHT = 384
-
 // Types that should use SVG instead of images
 const SVG_ONLY_TYPES = new Set([
     'text',
@@ -65,39 +39,26 @@ const SVG_ONLY_TYPES = new Set([
     'donut',
 ])
 
-// Get base size for an object type - uses OBJECT_METADATA as single source of truth
-function getBaseSize(type: string): number {
-    return OBJECT_METADATA[type]?.baseSize ?? 32
+// Wrapper to get scaled size from StrategyObject
+function getScaledSizeFromObj(obj: StrategyObject): number {
+    return getScaledSize(obj.type, obj.size ?? 100)
 }
 
-// Get scaled size for an object
-function getScaledSize(obj: StrategyObject): number {
-    const baseSize = getBaseSize(obj.type)
-    const scale = (obj.size ?? 100) / 100
-    return baseSize * scale
+// Wrapper to get opacity from StrategyObject
+function getOpacityFromObj(obj: StrategyObject): number {
+    return getObjectOpacity(obj.transparency, obj.hidden)
 }
 
-// Get opacity for an object
-function getObjectOpacity(obj: StrategyObject): number {
-    if (obj.hidden) return 0
-    if (obj.transparency !== undefined) return 1 - (obj.transparency / 100)
-    return 1
-}
-
-// Get color for an object (used for SVG primitives)
-function getObjectColor(obj: StrategyObject): string {
-    if (obj.color) return obj.color
-    if (obj.colorR !== undefined && obj.colorG !== undefined && obj.colorB !== undefined) {
-        return `rgb(${obj.colorR}, ${obj.colorG}, ${obj.colorB})`
-    }
-    return '#FFA131' // Default orange for AoEs
+// Wrapper to get color from StrategyObject
+function getColorFromObj(obj: StrategyObject): string {
+    return getObjectColor(obj, AOE_COLORS.default)
 }
 
 // Render image-based object
 function renderImageObject(obj: StrategyObject, index: number): JSX.Element | null {
     const { type, x, y } = obj
-    const size = getScaledSize(obj)
-    const opacity = getObjectOpacity(obj)
+    const size = getScaledSizeFromObj(obj)
+    const opacity = getOpacityFromObj(obj)
 
     if (opacity === 0) return null
 
@@ -194,8 +155,8 @@ function renderImageObject(obj: StrategyObject, index: number): JSX.Element | nu
 // Render SVG-based geometric objects
 function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null {
     const { type, x, y } = obj
-    const color = getObjectColor(obj)
-    const opacity = getObjectOpacity(obj)
+    const color = getColorFromObj(obj)
+    const opacity = getOpacityFromObj(obj)
     const scale = (obj.size ?? 100) / 100
 
     if (opacity === 0) return null
@@ -688,7 +649,7 @@ export function StrategyBoardRenderer({
     // Render highlight circle for an object
     const renderHighlight = (obj: { type: string; x: number; y: number }, index: number): JSX.Element | null => {
         if (!highlightTypes.includes(obj.type)) return null
-        const size = getScaledSize(obj as StrategyObject)
+        const size = getScaledSizeFromObj(obj as StrategyObject)
         const radius = size / 2 + 4 // Slightly larger than the icon
 
         return (

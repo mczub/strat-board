@@ -1082,39 +1082,69 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         // Special drag handler for lines - we need to move both start and end points
         // Only update on drag end to avoid exponential drift
         const handleLineDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-            const deltaX = e.target.x()
-            const deltaY = e.target.y()
+            const { updateObject, gridSize, showGrid } = useEditorStore.getState() // Get grid settings
+            let deltaX = e.target.x()
+            let deltaY = e.target.y()
+
             // Reset drag position and update both points, clamped to bounds
             e.target.x(0)
             e.target.y(0)
-            const { updateObject } = useEditorStore.getState()
+
+            // Calculate new positions
+            let newStartX = clampX(startX + deltaX)
+            let newStartY = clampY(startY + deltaY)
+            let newEndX = clampX(endX + deltaX)
+            let newEndY = clampY(endY + deltaY)
+
+            // Apply grid snapping if enabled
+            if (showGrid && gridSize > 0) {
+                // Snap the start point, and maintain relative distance for end point
+                // Or snap both? Snapping both ensures alignment.
+                // Let's snap both points individually to the grid
+                newStartX = clampX(Math.round(newStartX / gridSize) * gridSize)
+                newStartY = clampY(Math.round(newStartY / gridSize) * gridSize)
+                newEndX = clampX(Math.round(newEndX / gridSize) * gridSize)
+                newEndY = clampY(Math.round(newEndY / gridSize) * gridSize)
+            }
+
             updateObject(obj.id, {
-                x: clampX(startX + deltaX),
-                y: clampY(startY + deltaY),
-                endX: clampX(endX + deltaX),
-                endY: clampY(endY + deltaY)
+                x: newStartX,
+                y: newStartY,
+                endX: newEndX,
+                endY: newEndY
             })
         }
 
         // Handler for dragging the start point handle
         const handleStartPointDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
             e.cancelBubble = true // Stop propagation to parent Group
-            const newX = clampX(e.target.x())
-            const newY = clampY(e.target.y())
+            const { updateObject, gridSize, showGrid } = useEditorStore.getState()
+
+            let newX = clampX(e.target.x())
+            let newY = clampY(e.target.y())
+
+            if (showGrid && gridSize > 0) {
+                newX = clampX(Math.round(newX / gridSize) * gridSize)
+                newY = clampY(Math.round(newY / gridSize) * gridSize)
+            }
+
             e.target.x(newX)
             e.target.y(newY)
-            const { updateObject } = useEditorStore.getState()
             updateObject(obj.id, { x: newX, y: newY })
         }
 
         // Update Line and selection outline visually during start point drag
         const handleStartPointDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
             e.cancelBubble = true
-            // Clamp to bounds
+
+            // Clamp to bounds (no grid snap during drag)
             const newStartX = clampX(e.target.x())
             const newStartY = clampY(e.target.y())
+
+            // Update visual position of handle
             e.target.x(newStartX)
             e.target.y(newStartY)
+
             // Update line points
             if (lineRef.current) {
                 lineRef.current.points([newStartX, newStartY, endX, endY])
@@ -1128,22 +1158,33 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
         // Handler for dragging the end point handle
         const handleEndPointDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
             e.cancelBubble = true // Stop propagation to parent Group
-            const newX = clampX(e.target.x())
-            const newY = clampY(e.target.y())
+            const { updateObject, gridSize, showGrid } = useEditorStore.getState()
+
+            let newX = clampX(e.target.x())
+            let newY = clampY(e.target.y())
+
+            if (showGrid && gridSize > 0) {
+                newX = clampX(Math.round(newX / gridSize) * gridSize)
+                newY = clampY(Math.round(newY / gridSize) * gridSize)
+            }
+
             e.target.x(newX)
             e.target.y(newY)
-            const { updateObject } = useEditorStore.getState()
             updateObject(obj.id, { endX: newX, endY: newY })
         }
 
         // Update Line and selection outline visually during end point drag
         const handleEndPointDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
             e.cancelBubble = true
-            // Clamp to bounds
+
+            // Clamp to bounds (no grid snap during drag)
             const newEndX = clampX(e.target.x())
             const newEndY = clampY(e.target.y())
+
+            // Update visual position of handle
             e.target.x(newEndX)
             e.target.y(newEndY)
+
             // Update line points
             if (lineRef.current) {
                 lineRef.current.points([startX, startY, newEndX, newEndY])

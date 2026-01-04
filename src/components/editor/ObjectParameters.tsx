@@ -17,6 +17,7 @@ interface ObjectParametersProps {
 
 // Slider component for numeric parameters with editable input
 // Uses RAF throttling to limit store updates while maintaining smooth visual feedback
+// Text input uses commit-on-blur/enter to allow typing negative numbers and intermediate values
 function ParameterSlider({
     label,
     value,
@@ -32,14 +33,17 @@ function ParameterSlider({
     step?: number
     onChange: (value: number) => void
 }) {
-    // Local state for immediate visual feedback
-    const [localValue, setLocalValue] = React.useState(value)
+    // Local state for slider (immediate visual feedback)
+    const [sliderValue, setSliderValue] = React.useState(value)
+    // Separate text state for the input field (allows intermediate typing)
+    const [inputText, setInputText] = React.useState(String(value))
     const rafRef = React.useRef<number | null>(null)
     const pendingValueRef = React.useRef<number | null>(null)
 
-    // Sync local value when external value changes (e.g., undo/redo or initial load)
+    // Sync local values when external value changes (e.g., undo/redo, initial load, or slider drag)
     React.useEffect(() => {
-        setLocalValue(value)
+        setSliderValue(value)
+        setInputText(String(value))
     }, [value])
 
     // Cleanup RAF on unmount
@@ -51,9 +55,10 @@ function ParameterSlider({
         }
     }, [])
 
-    // Throttled onChange that batches updates to next animation frame
+    // Throttled onChange that batches updates to next animation frame (for slider)
     const throttledOnChange = React.useCallback((newValue: number) => {
-        setLocalValue(newValue) // Immediate visual update
+        setSliderValue(newValue) // Immediate visual update
+        setInputText(String(newValue)) // Keep text in sync with slider
         pendingValueRef.current = newValue
 
         if (rafRef.current === null) {
@@ -67,26 +72,36 @@ function ParameterSlider({
         }
     }, [onChange])
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = Number(e.target.value)
-        if (!isNaN(newValue)) {
-            // Clamp value to min/max
-            throttledOnChange(Math.max(min, Math.min(max, newValue)))
+    // Commit the text input value - validate, clamp, and update
+    const commitInputValue = React.useCallback(() => {
+        const parsed = Number(inputText)
+        if (!isNaN(parsed)) {
+            const clamped = Math.max(min, Math.min(max, parsed))
+            setSliderValue(clamped)
+            setInputText(String(clamped))
+            onChange(clamped)
+        } else {
+            // Reset to current value if invalid
+            setInputText(String(sliderValue))
         }
-    }
+    }, [inputText, min, max, onChange, sliderValue])
 
     return (
         <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
                 <label className="text-sm text-muted-foreground">{label}</label>
                 <input
-                    type="number"
-                    min={min}
-                    max={max}
-                    step={step}
-                    value={localValue}
-                    onChange={handleInputChange}
+                    type="text"
+                    inputMode="numeric"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onBlur={commitInputValue}
                     onKeyDown={(e) => {
+                        // Commit on Enter
+                        if (e.key === 'Enter') {
+                            commitInputValue()
+                            e.currentTarget.blur()
+                        }
                         // Stop Delete/Backspace from propagating to global handler
                         if (e.key === 'Delete' || e.key === 'Backspace') {
                             e.stopPropagation()
@@ -100,11 +115,64 @@ function ParameterSlider({
                 min={min}
                 max={max}
                 step={step}
-                value={localValue}
+                value={sliderValue}
                 onChange={(e) => throttledOnChange(Number(e.target.value))}
                 className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
             />
         </div>
+    )
+}
+
+// Simple numeric input that only commits on blur/enter - used for coordinates
+function CommitInput({
+    value,
+    onChange,
+    min,
+    max,
+    className = ''
+}: {
+    value: number
+    onChange: (value: number) => void
+    min: number
+    max: number
+    className?: string
+}) {
+    const [text, setText] = React.useState(String(value))
+
+    // Sync when external value changes
+    React.useEffect(() => {
+        setText(String(value))
+    }, [value])
+
+    const commit = React.useCallback(() => {
+        const parsed = parseInt(text)
+        if (!isNaN(parsed)) {
+            const clamped = Math.max(min, Math.min(max, parsed))
+            setText(String(clamped))
+            onChange(clamped)
+        } else {
+            setText(String(value))
+        }
+    }, [text, min, max, onChange, value])
+
+    return (
+        <input
+            type="text"
+            inputMode="numeric"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    commit()
+                    e.currentTarget.blur()
+                }
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.stopPropagation()
+                }
+            }}
+            className={className}
+        />
     )
 }
 

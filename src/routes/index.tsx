@@ -125,24 +125,17 @@ function HomePage() {
               </CardHeader>
             </Card>
           </Link>
+          <Link to="/editor" className="md:col-span-2">
+            <Card className="bg-card/30 border-primary/30 hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="text-center">
+                <CardTitle className="text-xl flex justify-center items-center gap-2"><Pencil className="w-6 h-6 text-primary" />editor</CardTitle>
+                <CardDescription>
+                  create and edit strategy boards
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
         </div>
-      </section>
-
-
-      {/* Create Placeholder */}
-      <section className="py-6 px-6 max-w-4xl mx-auto border-t border-border">
-        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          coming soon
-        </h2>
-        <Card className="bg-card/30 border-dashed mb-4">
-          <CardHeader className="text-center">
-            <CardTitle className="text-muted-foreground text-xl flex justify-center items-center gap-2"><Pencil className="w-6 h-6 text-muted-primary" />editor</CardTitle>
-            <CardDescription>
-              create and edit strategy boards
-            </CardDescription>
-          </CardHeader>
-        </Card>
       </section>
     </div>
   )

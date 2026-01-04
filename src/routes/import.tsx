@@ -11,7 +11,7 @@ import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Download, Loader2, Copy, Check, AlertCircle, ExternalLink, Info } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, Copy, Check, AlertCircle, ExternalLink, Info, Pencil } from 'lucide-react'
 import { convertRaidplanToBoards, getConversionStats, type RaidplanData } from '@/lib/raidplanConverter'
 import { fetchRaidplan } from './api.raidplan'
 
@@ -106,6 +106,22 @@ function ImportPage() {
             setError(e instanceof Error ? e.message : 'Failed to import raidplan')
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const makeFullCode = (index: number) => {
+        const code = result?.codes[index]
+        if (!code) return
+        if (code.startsWith('stgy:')) {
+            return `[${code}]`
+        } else if (code.startsWith('[stgy:')) {
+            if (code.endsWith(']')) {
+                return code
+            } else {
+                return `${code}]`
+            }
+        } else {
+            return code
         }
     }
 
@@ -261,6 +277,11 @@ function ImportPage() {
                                                             <Copy className="w-3 h-3" />
                                                         )}
                                                     </Button>
+                                                    <Link to="/editor" search={{ code: makeFullCode(index) }} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="ghost" size="sm" className="h-7 px-2">
+                                                            <Pencil className="w-3 h-3" />
+                                                        </Button>
+                                                    </Link>
                                                     <Link
                                                         to="/$code"
                                                         params={{ code: encodeURIComponent(result.codes[index].replace(/^\[|\]$/g, '')) }}

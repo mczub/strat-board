@@ -7,6 +7,17 @@
 
 import { JSX } from 'react'
 import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
+import {
+    BOARD_WIDTH,
+    BOARD_HEIGHT,
+    DPS_UNIFIED_TO_SEPARATE,
+    UNIFIED_ROLE_TO_TYPES,
+    SEPARATE_ROLE_TO_TYPES,
+    getScaledSize,
+    getObjectOpacity,
+    getObjectColor,
+    AOE_COLORS,
+} from '@/lib/renderingUtils'
 
 interface StrategyBoardRendererProps {
     board: StrategyBoard
@@ -18,42 +29,6 @@ interface StrategyBoardRendererProps {
     highlightRole?: string // Role to highlight: 'MT', 'OT', 'H1', 'H2', 'D1'/'M1', etc.
 }
 
-// DPS marker remapping: Unified (dps_1-4) vs Separate (melee_1-2, ranged_dps_1-2)
-const DPS_UNIFIED_TO_SEPARATE: Record<string, string> = {
-    'dps_1': 'melee_1',
-    'dps_2': 'melee_2',
-    'dps_3': 'ranged_dps_1',
-    'dps_4': 'ranged_dps_2',
-}
-
-// Role to icon type mapping - Unified mode
-const UNIFIED_ROLE_TO_TYPES: Record<string, string[]> = {
-    'MT': ['tank_1'],
-    'ST': ['tank_2'],
-    'H1': ['healer_1'],
-    'H2': ['healer_2'],
-    'D1': ['dps_1'],
-    'D2': ['dps_2'],
-    'D3': ['dps_3'],
-    'D4': ['dps_4'],
-}
-
-// Role to icon type mapping - Separate mode
-const SEPARATE_ROLE_TO_TYPES: Record<string, string[]> = {
-    'MT': ['tank_1'],
-    'OT': ['tank_2'],
-    'H1': ['healer_1'],
-    'H2': ['healer_2'],
-    'M1': ['melee_1'],
-    'M2': ['melee_2'],
-    'R1': ['ranged_dps_1'],
-    'R2': ['ranged_dps_2'],
-}
-
-// Board dimensions (from FORMAT.md)
-const BOARD_WIDTH = 512
-const BOARD_HEIGHT = 384
-
 // Types that should use SVG instead of images
 const SVG_ONLY_TYPES = new Set([
     'text',
@@ -64,90 +39,26 @@ const SVG_ONLY_TYPES = new Set([
     'donut',
 ])
 
-// Default icon sizes (in board units)
-const ICON_SIZE_DEFAULTS: Record<string, number> = {
-    // Small icons (waymarks, markers)
-    waymark_a: 44, waymark_b: 44, waymark_c: 44, waymark_d: 44,
-    waymark_1: 44, waymark_2: 44, waymark_3: 44, waymark_4: 44,
-    attack_1: 30, attack_2: 30, attack_3: 30, attack_4: 30,
-    attack_5: 30, attack_6: 30, attack_7: 30, attack_8: 30,
-    bind_1: 30, bind_2: 30, bind_3: 30,
-    ignore_1: 30, ignore_2: 30,
-    square_marker: 30, circle_marker: 30, plus_marker: 30, triangle_marker: 30,
-    lockon_red: 30, lockon_blue: 30, lockon_purple: 30, lockon_green: 30,
-
-    // Role/job icons
-    tank: 28, tank_1: 28, tank_2: 28,
-    healer: 28, healer_1: 32, healer_2: 32,
-    dps: 28, dps_1: 32, dps_2: 32, dps_3: 32, dps_4: 32,
-    melee_dps: 28, ranged_dps: 28, physical_ranged_dps: 28, magical_ranged_dps: 28,
-    pure_healer: 28, barrier_healer: 28,
-
-    // Jobs
-    paladin: 28, monk: 28, warrior: 28, dragoon: 28, bard: 28,
-    white_mage: 28, black_mage: 28, summoner: 28, scholar: 28,
-    ninja: 28, machinist: 28, dark_knight: 28, astrologian: 28,
-    samurai: 28, red_mage: 28, blue_mage: 28, gunbreaker: 28,
-    dancer: 28, reaper: 28, sage: 28, viper: 28, pictomancer: 28,
-    gladiator: 28, pugilist: 28, marauder: 28, lancer: 28,
-    archer: 28, conjurer: 28, thaumaturge: 28, arcanist: 28, rogue: 28,
-
-    // Mechanics - larger
-    stack: 124, stack_multi: 124, line_stack: 124,
-    gaze: 124, proximity: 248, proximity_player: 124,
-    tankbuster: 72, tower: 64, targeting: 72,
-    radial_knockback: 260, linear_knockback: 270,
-    moving_circle_aoe: 126,
-    '1person_aoe': 64, '2person_aoe': 64, '3person_aoe': 64, '4person_aoe': 64,
-
-    // Shapes
-    shape_circle: 48, shape_x: 48, shape_triangle: 48, shape_square: 48,
-    up_arrow: 48, rotate: 48, rotate_clockwise: 48, rotate_counterclockwise: 48,
-    highlighted_circle: 48, highlighted_x: 48, highlighted_square: 48, highlighted_triangle: 48,
-
-    // Buffs/Debuffs
-    enhancement: 30, enfeeblement: 30,
-
-    small_enemy: 64, medium_enemy: 64, large_enemy: 64,
-
-    // Backgrounds (field overlays)
-    checkered_circle: 256, checkered_square: 256,
-    grey_circle: 256, grey_square: 256,
+// Wrapper to get scaled size from StrategyObject
+function getScaledSizeFromObj(obj: StrategyObject): number {
+    return getScaledSize(obj.type, obj.size ?? 100)
 }
 
-// Get base size for an object type
-function getBaseSize(type: string): number {
-    return ICON_SIZE_DEFAULTS[type] ?? 32
+// Wrapper to get opacity from StrategyObject
+function getOpacityFromObj(obj: StrategyObject): number {
+    return getObjectOpacity(obj.transparency, obj.hidden)
 }
 
-// Get scaled size for an object
-function getScaledSize(obj: StrategyObject): number {
-    const baseSize = getBaseSize(obj.type)
-    const scale = (obj.size ?? 100) / 100
-    return baseSize * scale
-}
-
-// Get opacity for an object
-function getObjectOpacity(obj: StrategyObject): number {
-    if (obj.hidden) return 0
-    if (obj.transparency !== undefined) return 1 - (obj.transparency / 100)
-    return 1
-}
-
-// Get color for an object (used for SVG primitives)
-function getObjectColor(obj: StrategyObject): string {
-    if (obj.color) return obj.color
-    if (obj.colorR !== undefined && obj.colorG !== undefined && obj.colorB !== undefined) {
-        return `rgb(${obj.colorR}, ${obj.colorG}, ${obj.colorB})`
-    }
-    return '#FFA131' // Default orange for AoEs
+// Wrapper to get color from StrategyObject
+function getColorFromObj(obj: StrategyObject): string {
+    return getObjectColor(obj, AOE_COLORS.default)
 }
 
 // Render image-based object
 function renderImageObject(obj: StrategyObject, index: number): JSX.Element | null {
     const { type, x, y } = obj
-    const size = getScaledSize(obj)
-    const opacity = getObjectOpacity(obj)
+    const size = getScaledSizeFromObj(obj)
+    const opacity = getOpacityFromObj(obj)
 
     if (opacity === 0) return null
 
@@ -244,8 +155,8 @@ function renderImageObject(obj: StrategyObject, index: number): JSX.Element | nu
 // Render SVG-based geometric objects
 function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null {
     const { type, x, y } = obj
-    const color = getObjectColor(obj)
-    const opacity = getObjectOpacity(obj)
+    const color = getColorFromObj(obj)
+    const opacity = getOpacityFromObj(obj)
     const scale = (obj.size ?? 100) / 100
 
     if (opacity === 0) return null
@@ -359,6 +270,8 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         const innerStartX = 0
         const innerStartY = -innerRadius
 
+        let bboxMarginLeft = 2, bboxMarginTop = 8, bboxMarginRight = 8, bboxMarginBottom = 2
+
         // End points
         const outerEndX = outerRadius * Math.cos(endAngleRad)
         const outerEndY = outerRadius * Math.sin(endAngleRad)
@@ -373,15 +286,15 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
 
         // Check cardinal directions if they fall within the arc sweep
         // East (0°): arc extends to outerRadius
-        if (endAngleRad > 0) { maxX = outerRadius }
+        if (endAngleRad > 0) { maxX = outerRadius; bboxMarginBottom = 8 }
         // South (90°/π/2): arc extends to outerRadius
-        if (endAngleRad > Math.PI / 2) { maxY = outerRadius }
+        if (endAngleRad > Math.PI / 2) { maxY = outerRadius; bboxMarginLeft = 8 }
         // West (180°/π): arc extends to -outerRadius
         if (endAngleRad > Math.PI) { minX = -outerRadius }
 
         // Bounding box center offset from the arc's geometric center (0,0)
-        const bboxCenterX = (minX + maxX) / 2
-        const bboxCenterY = (minY + maxY) / 2
+        const bboxCenterX = (minX + maxX - bboxMarginLeft + bboxMarginRight) / 2
+        const bboxCenterY = (minY + maxY - bboxMarginTop + bboxMarginBottom) / 2
 
         // Input x,y is the bounding box center, so offset to get actual arc center
         const centerX = x - bboxCenterX
@@ -452,23 +365,24 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
         // Bounding box includes the cone tip (0,0) and the arc
         // For a cone, the tip is always at (0,0) relative to itself
         let minX = 0, maxX = 0, minY = -radius, maxY = 0
+        let bboxMarginLeft = 2, bboxMarginTop = 8, bboxMarginRight = 8, bboxMarginBottom = 2
 
         // Check the end point of the arc
         const endX = radius * Math.cos(endAngleRad)
         const endY = radius * Math.sin(endAngleRad)
 
         minX = Math.min(0, endX)
-        maxX = Math.max(0, endX + 16)
-        maxY = Math.max(0, endY + 16)
+        maxX = Math.max(0, endX)
+        maxY = Math.max(0, endY)
 
         // Check cardinal directions if they fall within the arc sweep
-        if (endAngleRad > 0) { maxX = radius + 16 }  // East
-        if (endAngleRad > Math.PI / 2) { maxY = radius + 16 }  // South
-        if (endAngleRad > Math.PI) { minX = -radius - 16 }  // West
+        if (endAngleRad > 0) { maxX = radius; bboxMarginBottom = 8 }  // East
+        if (endAngleRad > Math.PI / 2) { maxY = radius; bboxMarginLeft = 8 }  // South
+        if (endAngleRad > Math.PI) { minX = -radius }  // West
 
         // Bounding box center offset from the cone tip (which is at 0,0)
-        const bboxCenterX = (minX + maxX) / 2
-        const bboxCenterY = (minY + maxY) / 2
+        const bboxCenterX = (minX + maxX - bboxMarginLeft + bboxMarginRight) / 2
+        const bboxCenterY = (minY + maxY - bboxMarginTop + bboxMarginBottom) / 2
 
         // Input x,y is the bounding box center, so offset to get actual cone tip
         const tipX = x - bboxCenterX
@@ -735,7 +649,7 @@ export function StrategyBoardRenderer({
     // Render highlight circle for an object
     const renderHighlight = (obj: { type: string; x: number; y: number }, index: number): JSX.Element | null => {
         if (!highlightTypes.includes(obj.type)) return null
-        const size = getScaledSize(obj as StrategyObject)
+        const size = getScaledSizeFromObj(obj as StrategyObject)
         const radius = size / 2 + 4 // Slightly larger than the icon
 
         return (

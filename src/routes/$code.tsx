@@ -9,7 +9,7 @@ import type { StrategyBoard } from 'xiv-strat-board'
 import { StrategyBoardRenderer } from '@/components/StrategyBoardRenderer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink, Image, Grid, Users, Split } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Copy, Check, ExternalLink, Image, Grid, Users, Split, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { useIsInIframe } from '@/hooks/useIsInIframe'
 
@@ -184,6 +184,12 @@ function ViewBoardPage() {
                                 {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
                                 Share URL
                             </Button>
+                            <Link to="/editor" search={{ code: makeFullCode(decodedCode) }}>
+                                <Button variant="outline" size="sm">
+                                    <Pencil className="w-4 h-4 mr-2" />
+                                    Open in Editor
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </div>

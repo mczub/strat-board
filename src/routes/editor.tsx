@@ -339,18 +339,33 @@ function EditorPage() {
             {/* Main Editor Layout */}
             <div className="flex-1 p-2 sm:p-4" onClick={handleEditorClick}>
                 <div className="max-w-[96rem] mx-auto h-full">
-                    {/* Desktop: 3-column layout */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_320px] gap-3 h-full">
-                        {/* Left Panel - Object List */}
-                        <div className="order-2 lg:order-1" data-editor-interactive>
+                    {/* 
+                      Responsive Layout:
+                      - >96rem (1536px): Full 3-column layout
+                      - 80-96rem (1280-1536px): 3-column layout with scaled canvas
+                      - <80rem (1280px): Stacked vertical layout
+                      
+                      Using CSS-only approach with single canvas to avoid Konva render issues
+                    */}
+
+                    {/* 
+                      Responsive grid layout:
+                      - xl+: 3-column layout [ObjectList | Canvas+Params | ObjectLayers]
+                      - <xl: Single column with Canvas+Params, then ObjectList/ObjectLayers side-by-side
+                    */}
+                    <div className="grid gap-3 h-full xl:grid-cols-[240px_1fr_240px] 2xl:grid-cols-[320px_1fr_320px]">
+                        {/* Object List - Left column on xl+, hidden on small (shown below) */}
+                        <div className="hidden xl:block xl:order-1" data-editor-interactive>
                             <ObjectList className="h-fit" />
                         </div>
 
-                        {/* Center - Canvas */}
-                        <div className="order-1 lg:order-2 space-y-3">
+                        {/* Center column - Canvas + Parameters */}
+                        <div className="space-y-3 order-1 xl:order-2">
                             <Card className="bg-card/50 border-border overflow-hidden py-2" data-editor-interactive>
-                                <CardContent className="p-2">
-                                    <EditorCanvas />
+                                <CardContent className="p-2 flex justify-center xl:block">
+                                    <div className="w-full max-w-[540px] xl:max-w-none">
+                                        <EditorCanvas />
+                                    </div>
                                 </CardContent>
                             </Card>
 
@@ -358,10 +373,20 @@ function EditorPage() {
                             <div data-editor-interactive>
                                 <ObjectParameters />
                             </div>
+
+                            {/* Small screen only: ObjectList and ObjectLayers side-by-side */}
+                            <div className="grid grid-cols-2 gap-3 xl:hidden">
+                                <div data-editor-interactive>
+                                    <ObjectList className="h-fit" />
+                                </div>
+                                <div data-editor-interactive>
+                                    <ObjectLayers className="max-h-[50vh]" />
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Right Panel - Object Layers */}
-                        <div className="order-3" data-editor-interactive>
+                        {/* Object Layers - Right column on xl+, hidden on small (shown above) */}
+                        <div className="hidden xl:block xl:order-3" data-editor-interactive>
                             <ObjectLayers className="max-h-[calc(100vh-18rem)]" />
                         </div>
                     </div>
@@ -409,10 +434,10 @@ function EditorPage() {
                         </div>
                     </div>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Import Modal */}
-            <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+            < Dialog open={showImportModal} onOpenChange={setShowImportModal} >
                 <DialogContent onClose={() => setShowImportModal(false)} className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Import Share Code</DialogTitle>
@@ -453,7 +478,7 @@ function EditorPage() {
                         </div>
                     </div>
                 </DialogContent>
-            </Dialog>
-        </div>
+            </Dialog >
+        </div >
     )
 }

@@ -1588,55 +1588,61 @@ export function EditorCanvas({ className = '' }: EditorCanvasProps) {
         <div
             ref={containerRef}
             className={`relative ${className}`}
-            style={{ aspectRatio: '4/3', width: '100%' }}
+            style={{ aspectRatio: '4/3', width: '100%', overflow: 'hidden' }}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
-            <Stage
-                ref={stageRef}
-                width={BOARD_WIDTH * scale}
-                height={BOARD_HEIGHT * scale}
-                scaleX={scale}
-                scaleY={scale}
-                onClick={handleStageClick}
-                onTap={handleStageClick}
-                style={{
-                    background: '#1a1a2e',
-                    overflow: 'hidden'
-                }}
-            >
-                {/* Background layer */}
-                <Layer>
-                    <BackgroundLayer background={board.boardBackground} />
-                    <GridLayer gridSize={gridSize} />
-                </Layer>
+            {/* Container that scales the fixed-size canvas */}
+            <div style={{
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                width: BOARD_WIDTH,
+                height: BOARD_HEIGHT
+            }}>
+                <Stage
+                    ref={stageRef}
+                    width={BOARD_WIDTH}
+                    height={BOARD_HEIGHT}
+                    onClick={handleStageClick}
+                    onTap={handleStageClick}
+                    style={{
+                        background: '#1a1a2e',
+                        overflow: 'hidden'
+                    }}
+                >
+                    {/* Background layer */}
+                    <Layer>
+                        <BackgroundLayer background={board.boardBackground} />
+                        <GridLayer gridSize={gridSize} />
+                    </Layer>
 
-                {/* Objects layer - render in reverse so first object is on top, selected object renders last for click priority */}
-                <Layer>
-                    {/* First render all non-selected objects */}
-                    {[...board.objects].reverse()
-                        .filter(obj => obj.id !== selectedObjectId)
-                        .map((obj) => (
+                    {/* Objects layer - render in reverse so first object is on top, selected object renders last for click priority */}
+                    <Layer>
+                        {/* First render all non-selected objects */}
+                        {[...board.objects].reverse()
+                            .filter(obj => obj.id !== selectedObjectId)
+                            .map((obj) => (
+                                <EditorObjectNode
+                                    key={obj.id}
+                                    obj={obj}
+                                    isSelected={false}
+                                    onSelect={() => selectObject(obj.id)}
+                                    useSeparateDps={useSeparateDps}
+                                />
+                            ))}
+                        {/* Then render selected object on top for click priority */}
+                        {selectedObjectId && board.objects.find(obj => obj.id === selectedObjectId) && (
                             <EditorObjectNode
-                                key={obj.id}
-                                obj={obj}
-                                isSelected={false}
-                                onSelect={() => selectObject(obj.id)}
+                                key={selectedObjectId}
+                                obj={board.objects.find(obj => obj.id === selectedObjectId)!}
+                                isSelected={true}
+                                onSelect={() => selectObject(selectedObjectId)}
                                 useSeparateDps={useSeparateDps}
                             />
-                        ))}
-                    {/* Then render selected object on top for click priority */}
-                    {selectedObjectId && board.objects.find(obj => obj.id === selectedObjectId) && (
-                        <EditorObjectNode
-                            key={selectedObjectId}
-                            obj={board.objects.find(obj => obj.id === selectedObjectId)!}
-                            isSelected={true}
-                            onSelect={() => selectObject(selectedObjectId)}
-                            useSeparateDps={useSeparateDps}
-                        />
-                    )}
-                </Layer>
-            </Stage>
+                        )}
+                    </Layer>
+                </Stage>
+            </div>
         </div>
     )
 }

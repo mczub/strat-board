@@ -45,6 +45,9 @@ interface EditorState {
     gridSize: 0 | 8 | 16 | 32
     showGrid: boolean
 
+    // Clipboard for copy/paste
+    clipboard: Omit<EditorObject, 'id'> | null
+
     // Undo/Redo history
     past: BoardSnapshot[]
     future: BoardSnapshot[]
@@ -66,6 +69,12 @@ interface EditorState {
     setUseSeparateDps: (val: boolean) => void
     setGridSize: (size: 0 | 8 | 16 | 32) => void
     setShowGrid: (show: boolean) => void
+
+    // Copy/Paste actions
+    copyObject: () => void
+    pasteObject: (x?: number, y?: number) => void
+    canPaste: () => boolean
+    duplicateObject: () => void
 
     // Undo/Redo actions
     undo: () => void
@@ -101,6 +110,7 @@ export const useEditorStore = create<EditorState>()(
             useSeparateDps: false,
             gridSize: 0 as const, // 0 = off, 8/16/32 = snap size
             showGrid: false,
+            clipboard: null,
             past: [],
             future: [],
 
@@ -361,6 +371,125 @@ export const useEditorStore = create<EditorState>()(
             // Toggle grid visibility
             setShowGrid: (show) => {
                 set({ showGrid: show })
+            },
+
+            // Copy selected object to clipboard
+            copyObject: () => {
+                const state = get()
+                if (!state.selectedObjectId) return
+                const obj = state.board.objects.find(o => o.id === state.selectedObjectId)
+                if (!obj) return
+                // Store object without id (will get new id on paste)
+                const { id, ...objWithoutId } = obj
+                set({ clipboard: objWithoutId })
+            },
+
+            // Paste object from clipboard at position
+            pasteObject: (x?: number, y?: number) => {
+                const state = get()
+                if (!state.clipboard) return
+                if (state.board.objects.length >= MAX_OBJECTS) {
+                    console.warn('Maximum object limit reached (50)')
+                    return
+                }
+
+                // When no position provided, offset from the currently selected object
+                // (or clipboard position if nothing selected). This allows pasting
+                // multiple times in a row with consistent spacing.
+                let baseX = state.clipboard.x
+                let baseY = state.clipboard.y
+                if (state.selectedObjectId) {
+                    const selectedObj = state.board.objects.find(o => o.id === state.selectedObjectId)
+                    if (selectedObj) {
+                        baseX = selectedObj.x
+                        baseY = selectedObj.y
+                    }
+                }
+                const pasteX = x ?? Math.min(BOARD_WIDTH - 10, baseX + 20)
+                const pasteY = y ?? Math.min(BOARD_HEIGHT - 10, baseY + 20)
+
+                // Handle line objects - need to offset both endpoints
+                let lineOffsets = {}
+                if (state.clipboard.type === 'line' && state.clipboard.endX !== undefined && state.clipboard.endY !== undefined) {
+                    const deltaX = pasteX - state.clipboard.x
+                    const deltaY = pasteY - state.clipboard.y
+                    lineOffsets = {
+                        endX: Math.max(0, Math.min(BOARD_WIDTH, state.clipboard.endX + deltaX)),
+                        endY: Math.max(0, Math.min(BOARD_HEIGHT, state.clipboard.endY + deltaY)),
+                    }
+                }
+
+                const newObject: EditorObject = {
+                    ...state.clipboard,
+                    ...lineOffsets,
+                    id: nanoid(8),
+                    x: Math.max(0, Math.min(BOARD_WIDTH, pasteX)),
+                    y: Math.max(0, Math.min(BOARD_HEIGHT, pasteY)),
+                    // Clear lock/hide state on paste
+                    hidden: undefined,
+                    locked: undefined,
+                }
+
+                set((state) => ({
+                    past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+                    future: [],
+                    board: {
+                        ...state.board,
+                        objects: [...state.board.objects, newObject],
+                    },
+                    selectedObjectId: newObject.id, // Auto-select pasted object
+                }))
+            },
+
+            // Check if paste is available
+            canPaste: () => get().clipboard !== null,
+
+            // Duplicate selected object (copy + paste in one action)
+            duplicateObject: () => {
+                const state = get()
+                if (!state.selectedObjectId) return
+                if (state.board.objects.length >= MAX_OBJECTS) {
+                    console.warn('Maximum object limit reached (50)')
+                    return
+                }
+
+                const obj = state.board.objects.find(o => o.id === state.selectedObjectId)
+                if (!obj) return
+
+                // Calculate paste position with offset
+                const pasteX = Math.min(BOARD_WIDTH - 10, obj.x + 20)
+                const pasteY = Math.min(BOARD_HEIGHT - 10, obj.y + 20)
+
+                // Handle line objects - need to offset both endpoints
+                let lineOffsets = {}
+                if (obj.type === 'line' && obj.endX !== undefined && obj.endY !== undefined) {
+                    lineOffsets = {
+                        endX: Math.max(0, Math.min(BOARD_WIDTH, obj.endX + 20)),
+                        endY: Math.max(0, Math.min(BOARD_HEIGHT, obj.endY + 20)),
+                    }
+                }
+
+                const { id, ...objWithoutId } = obj
+                const newObject: EditorObject = {
+                    ...objWithoutId,
+                    ...lineOffsets,
+                    id: nanoid(8),
+                    x: Math.max(0, Math.min(BOARD_WIDTH, pasteX)),
+                    y: Math.max(0, Math.min(BOARD_HEIGHT, pasteY)),
+                    // Clear lock/hide state on duplicate
+                    hidden: undefined,
+                    locked: undefined,
+                }
+
+                set((state) => ({
+                    past: [...state.past, cloneBoard(state.board)].slice(-MAX_HISTORY),
+                    future: [],
+                    board: {
+                        ...state.board,
+                        objects: [...state.board.objects, newObject],
+                    },
+                    selectedObjectId: newObject.id, // Auto-select duplicated object
+                }))
             },
             undo: () => {
                 const state = get()

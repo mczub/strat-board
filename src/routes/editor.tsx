@@ -26,7 +26,10 @@ import {
     Undo,
     Redo,
     Pencil,
-    Upload
+    Upload,
+    Clipboard,
+    ClipboardPaste,
+    CopyPlus
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
@@ -52,7 +55,7 @@ export const Route = createFileRoute('/editor')({
 
 function EditorPage() {
     const { code } = Route.useSearch()
-    const { board, setName, clearBoard, exportCode, loadFromCode, useSeparateDps, setUseSeparateDps, undo, redo, canUndo, canRedo, selectObject, deleteObject, gridSize, setGridSize, showGrid, setShowGrid } = useEditorStore()
+    const { board, setName, clearBoard, exportCode, loadFromCode, useSeparateDps, setUseSeparateDps, undo, redo, canUndo, canRedo, selectObject, deleteObject, gridSize, setGridSize, showGrid, setShowGrid, copyObject, pasteObject, canPaste, selectedObjectId, duplicateObject } = useEditorStore()
     const [exportedCode, setExportedCode] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
     const [importCode, setImportCode] = useState('')
@@ -60,6 +63,9 @@ function EditorPage() {
     const [showExportModal, setShowExportModal] = useState(false)
     const [showImportModal, setShowImportModal] = useState(false)
     const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false)
+    // Track mouse position for paste-at-cursor
+    const [mouseOnCanvas, setMouseOnCanvas] = useState(false)
+    const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null)
 
     // Load board from URL code param on mount
     useEffect(() => {
@@ -103,6 +109,34 @@ function EditorPage() {
                     deleteObject(currentSelectedId)
                 }
             }
+            // Ctrl+C to copy selected object
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                const currentSelectedId = useEditorStore.getState().selectedObjectId
+                if (currentSelectedId) {
+                    e.preventDefault()
+                    copyObject()
+                }
+            }
+            // Ctrl+V to paste
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                if (useEditorStore.getState().clipboard) {
+                    e.preventDefault()
+                    // Paste at mouse position if on canvas, otherwise with offset
+                    if (mouseOnCanvas && mousePosition) {
+                        pasteObject(mousePosition.x, mousePosition.y)
+                    } else {
+                        pasteObject()
+                    }
+                }
+            }
+            // Ctrl+D to duplicate selected object
+            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                const currentSelectedId = useEditorStore.getState().selectedObjectId
+                if (currentSelectedId) {
+                    e.preventDefault()
+                    duplicateObject()
+                }
+            }
             // Arrow keys to move selected object
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                 const state = useEditorStore.getState()
@@ -133,7 +167,44 @@ function EditorPage() {
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [undo, redo, selectObject, deleteObject])
+    }, [undo, redo, selectObject, deleteObject, copyObject, pasteObject, duplicateObject, mouseOnCanvas, mousePosition])
+
+    // Handler to update mouse position when on canvas
+    const handleCanvasMouseMove = (e: React.MouseEvent) => {
+        const canvas = e.currentTarget.querySelector('canvas')
+        if (!canvas) return
+        const rect = canvas.getBoundingClientRect()
+        // Calculate scale factor (canvas is 512x384 but may be scaled)
+        const scaleX = 512 / rect.width
+        const scaleY = 384 / rect.height
+        const x = Math.round((e.clientX - rect.left) * scaleX)
+        const y = Math.round((e.clientY - rect.top) * scaleY)
+        // Only update if within bounds
+        if (x >= 0 && x <= 512 && y >= 0 && y <= 384) {
+            setMousePosition({ x, y })
+            setMouseOnCanvas(true)
+        } else {
+            setMouseOnCanvas(false)
+        }
+    }
+
+    const handleCanvasMouseLeave = () => {
+        setMouseOnCanvas(false)
+    }
+
+    // Handle copy button click
+    const handleCopyObject = () => {
+        copyObject()
+    }
+
+    // Handle paste button click
+    const handlePasteObject = () => {
+        if (mouseOnCanvas && mousePosition) {
+            pasteObject(mousePosition.x, mousePosition.y)
+        } else {
+            pasteObject()
+        }
+    }
 
     const handleExport = () => {
         const code = exportCode()
@@ -263,6 +334,39 @@ function EditorPage() {
                                     Redo
                                 </Button>
                             </div>
+                            {/* Copy/Paste Buttons */}
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCopyObject}
+                                    disabled={!selectedObjectId}
+                                    title="Copy Object (Ctrl+C)"
+                                >
+                                    <Clipboard className="w-3.5 h-3.5" />
+                                    Copy
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handlePasteObject}
+                                    disabled={!canPaste()}
+                                    title="Paste Object (Ctrl+V)"
+                                >
+                                    <ClipboardPaste className="w-3.5 h-3.5" />
+                                    Paste
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={duplicateObject}
+                                    disabled={!selectedObjectId}
+                                    title="Duplicate Object (Ctrl+D)"
+                                >
+                                    <CopyPlus className="w-3.5 h-3.5" />
+                                    Duplicate
+                                </Button>
+                            </div>
                             {/* Grid Controls */}
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground">Grid</span>
@@ -362,7 +466,11 @@ function EditorPage() {
                         {/* Center column - Canvas + Parameters */}
                         <div className="space-y-3 order-1 xl:order-2">
                             <Card className="bg-card/50 border-border overflow-hidden py-2" data-editor-interactive>
-                                <CardContent className="p-2 flex justify-center xl:block">
+                                <CardContent
+                                    className="p-2 flex justify-center xl:block"
+                                    onMouseMove={handleCanvasMouseMove}
+                                    onMouseLeave={handleCanvasMouseLeave}
+                                >
                                     <div className="w-full max-w-[540px] xl:max-w-none">
                                         <EditorCanvas />
                                     </div>

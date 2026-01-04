@@ -1038,13 +1038,25 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
     }
 
     if (obj.type === 'line') {
-        // Lines use x,y as start point, endX,endY as end point
+        // Lines: x,y is start endpoint, endX,endY is end endpoint
+        // UI displays the MIDPOINT as X,Y (calculated, not stored)
+        // height = stroke width, angle = rotation (0° = horizontal/right)
         const startX = obj.x
         const startY = obj.y
         const endX = obj.endX ?? (obj.x + 50)
-        const endY = obj.endY ?? (obj.y - 50)
-        const strokeWidth = obj.height ?? 3
+        const endY = obj.endY ?? obj.y  // Default horizontal line
+        const strokeWidth = obj.height ?? 6
         const opacity = (100 - (obj.transparency ?? 0)) / 100
+
+        // Helper: Calculate angle from endpoints (0° = horizontal/right, positive = clockwise)
+        const calculateAngleFromEndpoints = (sx: number, sy: number, ex: number, ey: number): number => {
+            const dx = ex - sx
+            const dy = ey - sy
+            // atan2(dy, dx) gives angle from positive X axis (horizontal right)
+            // Positive Y goes down in screen coords, so positive dy = clockwise rotation
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI)  // No negation: positive = clockwise
+            return Math.round(angle)
+        }
 
         // Refs for the Lines so we can update them during drag
         const lineRef = useRef<Konva.Line>(null)
@@ -1078,11 +1090,15 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
                 newEndY = clampY(Math.round(newEndY / gridSize) * gridSize)
             }
 
+            // Calculate angle from new endpoints
+            const newAngle = calculateAngleFromEndpoints(newStartX, newStartY, newEndX, newEndY)
+
             updateObject(obj.id, {
                 x: newStartX,
                 y: newStartY,
                 endX: newEndX,
-                endY: newEndY
+                endY: newEndY,
+                angle: newAngle
             })
         }
 
@@ -1101,7 +1117,11 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
 
             e.target.x(newX)
             e.target.y(newY)
-            updateObject(obj.id, { x: newX, y: newY })
+
+            // Calculate new angle from updated start point
+            const newAngle = calculateAngleFromEndpoints(newX, newY, endX, endY)
+
+            updateObject(obj.id, { x: newX, y: newY, angle: newAngle })
         }
 
         // Update Line and selection outline visually during start point drag
@@ -1141,7 +1161,11 @@ const EditorObjectNode = memo(function EditorObjectNode({ obj, isSelected, onSel
 
             e.target.x(newX)
             e.target.y(newY)
-            updateObject(obj.id, { endX: newX, endY: newY })
+
+            // Calculate new angle from updated end point
+            const newAngle = calculateAngleFromEndpoints(startX, startY, newX, newY)
+
+            updateObject(obj.id, { endX: newX, endY: newY, angle: newAngle })
         }
 
         // Update Line and selection outline visually during end point drag

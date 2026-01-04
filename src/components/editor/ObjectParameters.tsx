@@ -241,6 +241,48 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
         updateObject(selectedObject.id, { text: text.slice(0, 30) })
     }
 
+    // Special handler for line angle changes that rotates the line around its midpoint
+    // When angle changes, x, y, endX, endY all update to maintain the midpoint and length
+    // Angle: 0° = horizontal right, positive = counterclockwise
+    const handleLineAngleChange = (newAngle: number, config: { min?: number, max?: number }) => {
+        const clampedAngle = Math.max(config.min ?? -180, Math.min(config.max ?? 180, newAngle))
+
+        // Get current endpoints
+        const startX = selectedObject.x
+        const startY = selectedObject.y
+        const endX = selectedObject.endX ?? (startX + 50)
+        const endY = selectedObject.endY ?? startY  // Default horizontal
+
+        // Calculate midpoint and length
+        const midX = (startX + endX) / 2
+        const midY = (startY + endY) / 2
+        const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2)
+        const halfLength = length / 2
+
+        // Calculate new endpoints from angle (0° = horizontal right, positive = clockwise)
+        const angleRad = (clampedAngle * Math.PI) / 180
+
+        // Direction vector from midpoint to end point
+        // For 0° (horizontal right): dx=halfLength, dy=0
+        // Positive angle = clockwise, so dy increases with positive angle
+        const dx = halfLength * Math.cos(angleRad)
+        const dy = halfLength * Math.sin(angleRad)  // Positive = clockwise (Y grows downward)
+
+        // New endpoints centered on midpoint
+        const newStartX = Math.max(0, Math.min(512, Math.round(midX - dx)))
+        const newStartY = Math.max(0, Math.min(384, Math.round(midY - dy)))
+        const newEndX = Math.max(0, Math.min(512, Math.round(midX + dx)))
+        const newEndY = Math.max(0, Math.min(384, Math.round(midY + dy)))
+
+        updateObject(selectedObject.id, {
+            x: newStartX,
+            y: newStartY,
+            endX: newEndX,
+            endY: newEndY,
+            angle: clampedAngle
+        })
+    }
+
     const handleColorChange = (r: number, g: number, b: number) => {
         updateObject(selectedObject.id, { colorR: r, colorG: g, colorB: b })
     }
@@ -288,7 +330,6 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                 )
 
             case 'size':
-            case 'angle':
             case 'transparency':
             case 'width':
             case 'height':
@@ -300,9 +341,37 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                     <ParameterSlider
                         key={paramType}
                         label={label}
-                        value={(selectedObject as any)[paramType] ?? 0}
+                        value={(selectedObject as any)[paramType] ?? config.default ?? 0}
                         min={config.min ?? 0}
                         max={config.max ?? 100}
+                        step={config.step ?? 1}
+                        onChange={(v) => handleNumericChange(paramType, v, config)}
+                    />
+                )
+
+            case 'angle':
+                // Special handler for lines - rotates line around midpoint
+                if (selectedObject.type === 'line') {
+                    return (
+                        <ParameterSlider
+                            key={paramType}
+                            label={label}
+                            value={(selectedObject as any)[paramType] ?? 0}
+                            min={config.min ?? -180}
+                            max={config.max ?? 180}
+                            step={config.step ?? 1}
+                            onChange={(v) => handleLineAngleChange(v, config)}
+                        />
+                    )
+                }
+                // Default handling for other types
+                return (
+                    <ParameterSlider
+                        key={paramType}
+                        label={label}
+                        value={(selectedObject as any)[paramType] ?? 0}
+                        min={config.min ?? -180}
+                        max={config.max ?? 180}
                         step={config.step ?? 1}
                         onChange={(v) => handleNumericChange(paramType, v, config)}
                     />
@@ -391,11 +460,27 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                             <label className="text-xs text-muted-foreground">X:</label>
                             <Input
                                 type="number"
-                                value={Math.round(selectedObject.x)}
+                                value={
+                                    // For lines, show the midpoint X
+                                    selectedObject.type === 'line'
+                                        ? Math.round((selectedObject.x + (selectedObject.endX ?? selectedObject.x + 50)) / 2)
+                                        : Math.round(selectedObject.x)
+                                }
                                 onChange={(e) => {
                                     const val = parseInt(e.target.value)
                                     if (!isNaN(val)) {
-                                        updateObject(selectedObject.id, { x: Math.max(0, Math.min(512, val)) })
+                                        if (selectedObject.type === 'line') {
+                                            // For lines, move both endpoints to maintain the new midpoint
+                                            const endX = selectedObject.endX ?? (selectedObject.x + 50)
+                                            const currentMidX = (selectedObject.x + endX) / 2
+                                            const deltaX = val - currentMidX
+                                            updateObject(selectedObject.id, {
+                                                x: Math.max(0, Math.min(512, selectedObject.x + deltaX)),
+                                                endX: Math.max(0, Math.min(512, endX + deltaX))
+                                            })
+                                        } else {
+                                            updateObject(selectedObject.id, { x: Math.max(0, Math.min(512, val)) })
+                                        }
                                     }
                                 }}
                                 className="h-6 w-16 text-xs px-1"
@@ -405,11 +490,27 @@ export function ObjectParameters({ className = '' }: ObjectParametersProps) {
                             <label className="text-xs text-muted-foreground">Y:</label>
                             <Input
                                 type="number"
-                                value={Math.round(selectedObject.y)}
+                                value={
+                                    // For lines, show the midpoint Y
+                                    selectedObject.type === 'line'
+                                        ? Math.round((selectedObject.y + (selectedObject.endY ?? selectedObject.y)) / 2)
+                                        : Math.round(selectedObject.y)
+                                }
                                 onChange={(e) => {
                                     const val = parseInt(e.target.value)
                                     if (!isNaN(val)) {
-                                        updateObject(selectedObject.id, { y: Math.max(0, Math.min(384, val)) })
+                                        if (selectedObject.type === 'line') {
+                                            // For lines, move both endpoints to maintain the new midpoint
+                                            const endY = selectedObject.endY ?? selectedObject.y
+                                            const currentMidY = (selectedObject.y + endY) / 2
+                                            const deltaY = val - currentMidY
+                                            updateObject(selectedObject.id, {
+                                                y: Math.max(0, Math.min(384, selectedObject.y + deltaY)),
+                                                endY: Math.max(0, Math.min(384, endY + deltaY))
+                                            })
+                                        } else {
+                                            updateObject(selectedObject.id, { y: Math.max(0, Math.min(384, val)) })
+                                        }
                                     }
                                 }}
                                 className="h-6 w-16 text-xs px-1"

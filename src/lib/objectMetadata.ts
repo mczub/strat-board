@@ -255,13 +255,14 @@ export const OBJECT_METADATA: Record<string, ObjectMetadata> = {
             color: COLOR_PARAM,
         }
     },
-    // Line - uses x,y (start) and endX,endY (end), size is stroke width
+    // Line - uses x,y (start) and endX,endY (end), height is stroke width
     line: {
         baseSize: 3,
         displayName: "Line",
         isSvg: true,
         parameters: {
-            size: { min: 2, max: 10, step: 1, default: 6, label: 'Height' },
+            height: { min: 2, max: 10, step: 1, default: 6, label: 'Height' },
+            angle: ANGLE_PARAM,
             color: COLOR_PARAM,
             transparency: TRANSPARENCY_PARAM,
         }

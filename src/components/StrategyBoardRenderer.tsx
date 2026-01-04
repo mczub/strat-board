@@ -487,7 +487,7 @@ function renderSvgObject(obj: StrategyObject, index: number): JSX.Element | null
     if (type === 'line') {
         const endX = obj.endX ?? x
         const endY = obj.endY ?? y
-        const strokeWidth = (obj.height ?? 20)
+        const strokeWidth = (obj.height ?? 6)  // Default matches objectMetadata
         return (
             <line
                 key={index}

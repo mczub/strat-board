@@ -58,7 +58,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased flex flex-col">
-        <Header />
+        {!isInIframe && <Header />}
         <main className="flex-1">{children}</main>
         {!isInIframe && (
           <footer className="border-t border-border bg-card/30 py-4 px-6">
@@ -80,15 +80,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </footer>
-        )}
-        {isInIframe && (
-          <div className=" bg-card/30 pb-4 px-6">
-            <div className="max-w-5xl mx-auto flex flex-col lg:flex-row justify-between items-left gap-2 text-xs text-muted-foreground">
-              <div>
-                <p>FINAL FANTASY is a registered trademark of Square Enix Holdings Co., Ltd. FINAL FANTASY XIV © SQUARE ENIX</p>
-              </div>
-            </div>
-          </div>
         )}
         <TanStackDevtools
           config={{

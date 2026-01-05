@@ -304,8 +304,10 @@ function EditorPage() {
                                 value={board.name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Board Name"
+                                maxLength={20}
                                 className="h-8 w-40 sm:w-56"
                             />
+                            <span className="text-xs text-muted-foreground">{board.name.length}/20</span>
                         </div>
 
                         {/* Right side: Toggles */}

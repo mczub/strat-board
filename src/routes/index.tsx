@@ -50,14 +50,6 @@ function HomePage() {
     navigate({ to: '/$code', params: { code: encodeURIComponent(cleanCode) } })
   }
 
-  const handleExampleClick = (exampleCode: string) => {
-    let cleanCode = exampleCode
-    if (cleanCode.startsWith('[') && cleanCode.endsWith(']')) {
-      cleanCode = cleanCode.slice(1, -1)
-    }
-    navigate({ to: '/$code', params: { code: encodeURIComponent(cleanCode) } })
-  }
-
   return (
     <div className="md:max-h-[calc(100vh-3.5rem)]">
       {/* Hero Section */}

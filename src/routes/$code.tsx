@@ -154,7 +154,7 @@ function ViewBoardPage() {
         <div className="md:min-h-[calc(100vh-9rem)] py-4 px-4">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4 flex-col sm:flex-row gap-4">
+                <div className="flex items-center justify-between mb-4 flex-row gap-4">
                     <div className="flex items-center gap-4 justify-between w-full">
                         {!isInIframe && (
                             <Link to="/">
@@ -174,16 +174,18 @@ function ViewBoardPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full justify-end">
-                        <div className="flex flex-row items-center gap-2">
+                    <div className="flex items-center gap-2 w-full justify-end ">
+                        <div className="flex flex-col md:flex-row items-center gap-2 justify-end">
                             <Button variant="outline" size="sm" onClick={handleCopy}>
                                 {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                                 Copy Code
                             </Button>
-                            <Button variant="outline" size="sm" onClick={handleCopyUrl}>
-                                {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-                                Share URL
-                            </Button>
+                            {!isInIframe && (
+                                <Button variant="outline" size="sm" onClick={handleCopyUrl}>
+                                    {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
+                                    Share URL
+                                </Button>
+                            )}
                             {!isInIframe && (
                                 <Link to="/editor" search={{ code: makeFullCode(decodedCode) }}>
                                     <Button variant="outline" size="sm">

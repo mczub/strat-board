@@ -184,12 +184,14 @@ function ViewBoardPage() {
                                 {urlCopied ? <Check className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
                                 Share URL
                             </Button>
-                            <Link to="/editor" search={{ code: makeFullCode(decodedCode) }}>
-                                <Button variant="outline" size="sm">
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Open in Editor
-                                </Button>
-                            </Link>
+                            {!isInIframe && (
+                                <Link to="/editor" search={{ code: makeFullCode(decodedCode) }}>
+                                    <Button variant="outline" size="sm">
+                                        <Pencil className="w-4 h-4 mr-2" />
+                                        Open in Editor
+                                    </Button>
+                                </Link>
+                            )}
                         </div>
                     </div>
                 </div>

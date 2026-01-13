@@ -10,6 +10,7 @@ import { encode, decode } from 'xiv-strat-board'
 import type { StrategyBoard, StrategyObject } from 'xiv-strat-board'
 import { nanoid } from 'nanoid'
 import { getDefaultProperties } from '@/lib/objectMetadata'
+import { DPS_SEPARATE_TO_UNIFIED } from '@/lib/renderingUtils'
 
 // Extended object type with unique ID for editor
 export interface EditorObject extends StrategyObject {
@@ -260,11 +261,16 @@ export const useEditorStore = create<EditorState>()(
             // Export to share code
             exportCode: () => {
                 const state = get()
-                // Convert EditorObjects to StrategyObjects (strip id)
+                // Convert EditorObjects to StrategyObjects (strip id and convert separate DPS types to unified)
+                // The xiv-strat-board library only recognizes dps_1-4, not melee_1/2 or ranged_dps_1/2
                 const board: StrategyBoard = {
                     name: state.board.name || 'Board',
-                    boardBackground: state.board.boardBackground,
-                    objects: state.board.objects.map(({ id, ...obj }) => obj),
+                    boardBackground: state.board.boardBackground as StrategyBoard['boardBackground'],
+                    objects: state.board.objects.map(({ id, ...obj }) => ({
+                        ...obj,
+                        // Convert separate DPS types to unified types for encoding
+                        type: DPS_SEPARATE_TO_UNIFIED[obj.type] || obj.type,
+                    })),
                 }
                 try {
                     return encode(board)
